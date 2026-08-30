@@ -1,8 +1,9 @@
-import { InterviewStatus, Role, type InterviewScorecard } from "@atcon/database";
+import { InterviewStatus, NotificationType, Role, type InterviewScorecard } from "@atcon/database";
 import type { ApplicationRepository, ApplicationWithRelations } from "../applications/application.repository.ts";
 import type { AuthenticatedUser } from "../auth/types.ts";
 import { UserRepository } from "../auth/user.repository.ts";
 import { CandidateRepository } from "../candidates/candidate.repository.ts";
+import type { NotificationService } from "../notifications/notification.service.ts";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../shared/http/HttpError.ts";
 import { isUniqueConstraintViolation } from "../shared/prismaErrors.ts";
 import type {
@@ -26,6 +27,7 @@ export class InterviewService {
     private readonly applicationRepository: ApplicationRepository,
     private readonly candidateRepository: CandidateRepository,
     private readonly userRepository: UserRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async scheduleInterview(
@@ -54,7 +56,7 @@ export class InterviewService {
     const meetingUrl = asOptionalString(input.meetingUrl);
     const notes = asOptionalString(input.notes);
 
-    return this.interviewRepository.create({
+    const interview = await this.interviewRepository.create({
       applicationId: application.id,
       interviewerId,
       scheduledAt,
@@ -62,6 +64,15 @@ export class InterviewService {
       meetingUrl,
       notes,
     });
+
+    await this.notifyCandidate(
+      application,
+      NotificationType.INTERVIEW_SCHEDULED,
+      "Interview scheduled",
+      `An interview for ${application.job.title} has been scheduled for ${scheduledAt.toISOString()}.`,
+    );
+
+    return interview;
   }
 
   async getInterviewForViewer(interviewId: string, viewer: AuthenticatedUser): Promise<InterviewWithScorecard> {
@@ -116,13 +127,37 @@ export class InterviewService {
     const scheduledAt = parseScheduledAt(input.scheduledAt);
     assertNotInThePast(scheduledAt);
 
-    return this.interviewRepository.updateStatus(interviewId, InterviewStatus.RESCHEDULED, { scheduledAt });
+    const updated = await this.interviewRepository.updateStatus(interviewId, InterviewStatus.RESCHEDULED, { scheduledAt });
+
+    const application = await this.applicationRepository.findById(interview.applicationId);
+    if (application) {
+      await this.notifyCandidate(
+        application,
+        NotificationType.INTERVIEW_RESCHEDULED,
+        "Interview rescheduled",
+        `Your interview for ${application.job.title} has been rescheduled to ${scheduledAt.toISOString()}.`,
+      );
+    }
+
+    return updated;
   }
 
   async cancelInterview(recruiterId: string, interviewId: string): Promise<InterviewWithScorecard> {
     const interview = await this.requireOwnedInterview(interviewId, recruiterId);
     assertMutable(interview);
-    return this.interviewRepository.updateStatus(interviewId, InterviewStatus.CANCELLED);
+    const updated = await this.interviewRepository.updateStatus(interviewId, InterviewStatus.CANCELLED);
+
+    const application = await this.applicationRepository.findById(interview.applicationId);
+    if (application) {
+      await this.notifyCandidate(
+        application,
+        NotificationType.INTERVIEW_CANCELLED,
+        "Interview cancelled",
+        `Your interview for ${application.job.title} has been cancelled.`,
+      );
+    }
+
+    return updated;
   }
 
   async completeInterview(recruiterId: string, interviewId: string): Promise<InterviewWithScorecard> {
@@ -204,6 +239,18 @@ export class InterviewService {
     const candidate = await this.candidateRepository.findByUserId(viewer.id);
     if (!candidate || application.candidateId !== candidate.id) {
       throw new NotFoundError("Interview not found");
+    }
+  }
+
+  private async notifyCandidate(
+    application: ApplicationWithRelations,
+    type: NotificationType,
+    title: string,
+    message: string,
+  ): Promise<void> {
+    const candidate = await this.candidateRepository.findById(application.candidateId);
+    if (candidate) {
+      await this.notificationService.notifyAsync(candidate.userId, type, title, message);
     }
   }
 }

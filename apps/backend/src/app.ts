@@ -20,7 +20,10 @@ import { InterviewService } from "./interviews/interview.service.ts";
 import { JobController } from "./jobs/job.controller.ts";
 import { JobRepository } from "./jobs/job.repository.ts";
 import { JobService } from "./jobs/job.service.ts";
-import { applicationRankQueue, resumeParseQueue } from "./queue/queues.ts";
+import { NotificationController } from "./notifications/notification.controller.ts";
+import { NotificationRepository } from "./notifications/notification.repository.ts";
+import { NotificationService } from "./notifications/notification.service.ts";
+import { applicationRankQueue, notificationSendQueue, resumeParseQueue } from "./queue/queues.ts";
 import { ResumeStorage } from "./shared/storage/resumeStorage.ts";
 import { withErrorHandling } from "./shared/http/withErrorHandling.ts";
 
@@ -44,6 +47,10 @@ export function buildRoutes() {
   const resumeService = new ResumeService(resumeRepository, candidateRepository, resumeStorage, resumeParseQueue);
   const resumeController = new ResumeController(resumeService);
 
+  const notificationRepository = new NotificationRepository();
+  const notificationService = new NotificationService(notificationRepository, notificationSendQueue);
+  const notificationController = new NotificationController(notificationService);
+
   const applicationRepository = new ApplicationRepository();
   const applicationService = new ApplicationService(
     applicationRepository,
@@ -51,11 +58,18 @@ export function buildRoutes() {
     candidateRepository,
     resumeRepository,
     applicationRankQueue,
+    notificationService,
   );
   const applicationController = new ApplicationController(applicationService);
 
   const interviewRepository = new InterviewRepository();
-  const interviewService = new InterviewService(interviewRepository, applicationRepository, candidateRepository, userRepository);
+  const interviewService = new InterviewService(
+    interviewRepository,
+    applicationRepository,
+    candidateRepository,
+    userRepository,
+    notificationService,
+  );
   const interviewController = new InterviewController(interviewService);
 
   return {
@@ -133,6 +147,12 @@ export function buildRoutes() {
     },
     "/interviews/:interviewId/scorecard": {
       POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.submitScorecard)),
+    },
+    "/notifications": {
+      GET: withErrorHandling(requireAuth(notificationController.list)),
+    },
+    "/notifications/:notificationId/read": {
+      PATCH: withErrorHandling(requireAuth(notificationController.markAsRead)),
     },
   };
 }

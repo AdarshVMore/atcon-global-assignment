@@ -1,9 +1,10 @@
-import { JobStatus, Role } from "@atcon/database";
+import { JobStatus, NotificationType, Role } from "@atcon/database";
 import type { Queue } from "bullmq";
 import type { AuthenticatedUser } from "../auth/types.ts";
 import { CandidateRepository } from "../candidates/candidate.repository.ts";
 import { ResumeRepository } from "../candidates/resume.repository.ts";
 import { JobRepository } from "../jobs/job.repository.ts";
+import type { NotificationService } from "../notifications/notification.service.ts";
 import type { ApplicationRankJobData } from "../queue/jobs.ts";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../shared/http/HttpError.ts";
 import { logger } from "../shared/logger.ts";
@@ -19,6 +20,7 @@ export class ApplicationService {
     private readonly candidateRepository: CandidateRepository,
     private readonly resumeRepository: ResumeRepository,
     private readonly applicationRankQueue: Queue<ApplicationRankJobData>,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async applyToJob(
@@ -82,6 +84,13 @@ export class ApplicationService {
       });
     }
 
+    await this.notificationService.notifyAsync(
+      job.recruiterId,
+      NotificationType.APPLICATION_RECEIVED,
+      "New application received",
+      `A candidate applied to ${job.title}.`,
+    );
+
     return application;
   }
 
@@ -141,13 +150,25 @@ export class ApplicationService {
 
     assertValidStageTransition(application.currentStage, targetStage);
 
-    return this.applicationRepository.moveToStage({
+    const updated = await this.applicationRepository.moveToStage({
       applicationId,
       fromStageId: application.currentStage.id,
       toStageId: targetStage.id,
       changedById: recruiterId,
       reason,
     });
+
+    const candidate = await this.candidateRepository.findById(application.candidateId);
+    if (candidate) {
+      await this.notificationService.notifyAsync(
+        candidate.userId,
+        NotificationType.APPLICATION_STAGE_CHANGED,
+        "Your application status changed",
+        `Your application for ${application.job.title} moved to ${targetStage.name}.`,
+      );
+    }
+
+    return updated;
   }
 
   private async assertCanView(application: ApplicationWithRelations, viewer: AuthenticatedUser): Promise<void> {

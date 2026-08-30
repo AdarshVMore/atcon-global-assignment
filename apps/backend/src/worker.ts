@@ -1,8 +1,9 @@
 import { logger } from "./shared/logger.ts";
 import { startApplicationRankWorker } from "./workers/applicationRank.worker.ts";
+import { startNotificationSendWorker } from "./workers/notificationSend.worker.ts";
 import { startResumeParseWorker } from "./workers/resumeParse.worker.ts";
 
-const workers = [startResumeParseWorker(), startApplicationRankWorker()];
+const workers = [startResumeParseWorker(), startApplicationRankWorker(), startNotificationSendWorker()];
 
 logger.info("Workers started", { count: workers.length });
 

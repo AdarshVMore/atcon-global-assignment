@@ -1,3 +1,5 @@
+import type { NotificationType } from "@atcon/database";
+
 export interface ResumeParseJobData {
   resumeId: string;
 }
@@ -7,5 +9,8 @@ export interface ApplicationRankJobData {
 }
 
 export interface NotificationSendJobData {
-  notificationId: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
 }

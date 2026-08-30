@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { InterviewStatus, JobStatus, Role, ScorecardRecommendation, type InterviewScorecard, type User } from "@atcon/database";
 import { InterviewService } from "./interview.service.ts";
+import type { NotificationService } from "../notifications/notification.service.ts";
 import type { ApplicationRepository, ApplicationWithRelations } from "../applications/application.repository.ts";
 import type { CandidateRepository, CandidateWithUser } from "../candidates/candidate.repository.ts";
 import type { UserRepository } from "../auth/user.repository.ts";
@@ -75,8 +76,13 @@ function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {
 function fakeCandidateRepository(overrides: Partial<CandidateRepository> = {}): CandidateRepository {
   return {
     findByUserId: async () => ({ id: CANDIDATE_ID, userId: CANDIDATE_USER_ID }) as CandidateWithUser,
+    findById: async () => ({ id: CANDIDATE_ID, userId: CANDIDATE_USER_ID }),
     ...overrides,
   } as CandidateRepository;
+}
+
+function fakeNotificationService(): NotificationService {
+  return { notifyAsync: async () => {} } as unknown as NotificationService;
 }
 
 function fakeUserRepository(overrides: Partial<UserRepository> = {}): UserRepository {
@@ -97,6 +103,7 @@ function buildService(overrides: {
     fakeApplicationRepository(overrides.applicationRepository),
     fakeCandidateRepository(overrides.candidateRepository),
     fakeUserRepository(overrides.userRepository),
+    fakeNotificationService(),
   );
 }
 

@@ -24,7 +24,7 @@ code exists — it must be implemented and verified. See the
 | 9 | [09-resume-parser-worker.md](09-resume-parser-worker.md) | Parse resumes asynchronously | [x] Complete |
 | 10 | [10-candidate-ranking.md](10-candidate-ranking.md) | Asynchronous candidate/job matching | [x] Complete |
 | 11 | [11-interviews.md](11-interviews.md) | Interview scheduling and structured scorecards | [x] Complete |
-| 12 | [12-notifications.md](12-notifications.md) | Notify users about recruitment events | [ ] Not started |
+| 12 | [12-notifications.md](12-notifications.md) | Notify users about recruitment events | [x] Complete |
 | 13 | [13-dashboard-and-analytics.md](13-dashboard-and-analytics.md) | Recruiter dashboard and pipeline health data | [ ] Not started |
 | 14 | [14-reliability-testing-and-cleanup.md](14-reliability-testing-and-cleanup.md) | Reliability review, testing, cleanup | [ ] Not started |
 | 15 | [15-livekit.md](15-livekit.md) | Optional realtime interview functionality | [ ] Not started |

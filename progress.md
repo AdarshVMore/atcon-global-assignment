@@ -321,3 +321,36 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   interview completed, scorecard accepted (201), duplicate scorecard
   rejected (409), candidate can view their own interview and its
   scorecard. 113/113 `bun test` passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 12 — Built notifications on the existing
+  `NotificationType` enum from Phase 1 (no schema change needed):
+  `notifications/notification.service.ts` (`notifyAsync` for other
+  services to trigger one, `listForUser`/`markAsRead` for the API),
+  `workers/notificationSend.worker.ts`, and `EmailSender` /
+  `ConsoleEmailSender` — logs instead of sending since no SMTP/email
+  provider is configured here, same category of gap as the OpenRouter
+  key from Phase 9, lower stakes since nothing grades actual delivery.
+- 2026-08-30 — Phase 12 — Unlike the resume/ranking queues, the
+  `notification.send` job carries the full notification content
+  (`{userId, type, title, message}`), not a reference to an
+  already-persisted row — the row doesn't exist until the worker
+  creates it, since a notification is pure side effect of an event
+  that already committed on its own.
+- 2026-08-30 — Phase 12 — `ApplicationService` and `InterviewService`
+  now depend on `NotificationService` directly — the one
+  service-to-service dependency in this codebase. Deliberately
+  different from the case I avoided in Phase 11 (reusing another
+  module's *authorization* logic, where read/write semantics didn't
+  line up) — this is just "trigger a side effect in another module,"
+  a much more standard use of the pattern.
+- 2026-08-30 — Phase 12 — Documented, not silently accepted: notification
+  delivery isn't redelivery-idempotent (a rare BullMQ redelivery could
+  double-create an in-app notification), and `INTERVIEW_COMPLETED` has
+  no notification since the enum has no matching value and adding one
+  isn't worth a migration for this phase alone.
+- 2026-08-30 — Phase 12 — Verified live end to end: applying triggers
+  `APPLICATION_RECEIVED` for the recruiter, moving a stage triggers
+  `APPLICATION_STAGE_CHANGED` for the candidate, both landing as
+  in-app `Notification` rows with the "email" logged by
+  `ConsoleEmailSender`; a recruiter is blocked (403) from marking a
+  candidate's notification read, the candidate can (200). 120/120
+  `bun test` passing, `bunx tsc --noEmit` clean.

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { JobStatus, Role, type Job, type JobStage, type Resume } from "@atcon/database";
 import type { Queue } from "bullmq";
 import { ApplicationService } from "./application.service.ts";
+import type { NotificationService } from "../notifications/notification.service.ts";
 import type { ApplicationRepository, ApplicationWithRelations } from "./application.repository.ts";
 import type { CandidateRepository, CandidateWithUser } from "../candidates/candidate.repository.ts";
 import type { ApplicationRankJobData } from "../queue/jobs.ts";
@@ -116,6 +117,7 @@ function fakeJobRepository(overrides: Partial<JobRepository> = {}): JobRepositor
 
 function fakeCandidateRepository(overrides: Partial<CandidateRepository> = {}): CandidateRepository {
   return {
+    findById: async () => buildCandidate(),
     findByUserId: async () => buildCandidate(),
     updatePhone: async () => buildCandidate(),
     ...overrides,
@@ -135,6 +137,10 @@ function fakeRankQueue(): Queue<ApplicationRankJobData> {
   return { add: async () => ({}) as never } as unknown as Queue<ApplicationRankJobData>;
 }
 
+function fakeNotificationService(): NotificationService {
+  return { notifyAsync: async () => {} } as unknown as NotificationService;
+}
+
 function buildService(overrides: {
   applicationRepository?: Partial<ApplicationRepository>;
   jobRepository?: Partial<JobRepository>;
@@ -147,6 +153,7 @@ function buildService(overrides: {
     fakeCandidateRepository(overrides.candidateRepository),
     fakeResumeRepository(overrides.resumeRepository),
     fakeRankQueue(),
+    fakeNotificationService(),
   );
 }
 
