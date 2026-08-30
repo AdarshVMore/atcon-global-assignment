@@ -1,4 +1,7 @@
 import { Role } from "@atcon/database";
+import { ApplicationController } from "./applications/application.controller.ts";
+import { ApplicationRepository } from "./applications/application.repository.ts";
+import { ApplicationService } from "./applications/application.service.ts";
 import { AuthController } from "./auth/auth.controller.ts";
 import { AuthService } from "./auth/auth.service.ts";
 import { requireAuth, requireRole } from "./auth/middleware.ts";
@@ -36,6 +39,15 @@ export function buildRoutes() {
   const resumeStorage = new ResumeStorage();
   const resumeService = new ResumeService(resumeRepository, candidateRepository, resumeStorage);
   const resumeController = new ResumeController(resumeService);
+
+  const applicationRepository = new ApplicationRepository();
+  const applicationService = new ApplicationService(
+    applicationRepository,
+    jobRepository,
+    candidateRepository,
+    resumeRepository,
+  );
+  const applicationController = new ApplicationController(applicationService);
 
   return {
     "/health": {
@@ -77,6 +89,15 @@ export function buildRoutes() {
     "/candidates/me/resumes": {
       GET: withErrorHandling(requireRole([Role.CANDIDATE], resumeController.list)),
       POST: withErrorHandling(requireRole([Role.CANDIDATE], resumeController.upload)),
+    },
+    "/jobs/:jobId/applications": {
+      POST: withErrorHandling(requireRole([Role.CANDIDATE], applicationController.apply)),
+    },
+    "/applications": {
+      GET: withErrorHandling(requireAuth(applicationController.list)),
+    },
+    "/applications/:applicationId": {
+      GET: withErrorHandling(requireAuth(applicationController.getById)),
     },
   };
 }

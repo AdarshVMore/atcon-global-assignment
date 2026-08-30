@@ -140,3 +140,28 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   Postgres, duplicate re-upload → 409, wrong file type → 400, recruiter
   blocked from candidate routes → 403. 40/40 `bun test` passing,
   `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 6 — Built `POST /jobs/:jobId/applications`,
+  `GET /applications` (role-branched, recruiter gets an optional
+  `?jobId=` filter), and `GET /applications/:applicationId`.
+  `Application` + its initial `ApplicationStageHistory` row are created
+  together in one `prisma.$transaction` — state-machine.md's "stage
+  history must not be silently bypassed" rule applies to the very
+  first stage assignment too, not just later transitions.
+- 2026-08-30 — Phase 6 — Made `resumeId` required to apply (schema
+  keeps it nullable — cheap flexibility — but the business rule that
+  you need a submitted resume to apply lives in `ApplicationService`,
+  not the database). Applying picks the job's lowest-`order` stage
+  automatically.
+- 2026-08-30 — Phase 6 — Duplicate-candidate detection at this layer is
+  mostly already covered by Phase 1/3's global `User.email` and
+  `Candidate.phone` uniqueness; what's new here is duplicate-application
+  prevention (pre-check plus a DB-constraint fallback for races).
+  Documented in the phase file that cross-candidate resume-hash matches
+  still aren't surfaced anywhere — a known gap carried over from Phase
+  5, not something this phase changes.
+- 2026-08-30 — Phase 6 — Verified live end to end: apply without a
+  resumeId → 400, apply with one → 201 with both the `Application` and
+  its stage-history row present in the response, re-apply → 409,
+  candidate and the owning recruiter can both view/list it, ownership
+  enforced in tests for the non-owning cases. 50/50 `bun test` passing,
+  `bunx tsc --noEmit` clean.
