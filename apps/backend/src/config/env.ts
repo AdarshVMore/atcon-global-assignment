@@ -2,6 +2,7 @@ export interface AppConfig {
   nodeEnv: string;
   port: number;
   databaseUrl: string;
+  redisUrl: string;
   jwtSecret: string;
   jwtExpiresIn: string;
   s3Endpoint: string;
@@ -23,6 +24,7 @@ export const config: AppConfig = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 3000),
   databaseUrl: requireEnv("DATABASE_URL"),
+  redisUrl: requireEnv("REDIS_URL"),
   jwtSecret: requireEnv("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "1d",
   s3Endpoint: requireEnv("S3_ENDPOINT"),

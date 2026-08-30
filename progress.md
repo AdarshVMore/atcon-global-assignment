@@ -187,3 +187,38 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   (confirmed via `psql`), jump straight to a terminal stage succeeds,
   any further move after that is rejected (409). 61/61 `bun test`
   passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 8 — Chose BullMQ over hand-rolling a queue on raw
+  Redis — retry/backoff/dead-letter semantics are exactly the kind of
+  thing worth getting from a well-tested library rather than
+  reinventing, same call as `jose` for JWT back in Phase 3. Added
+  `ioredis` as a direct dependency since BullMQ needs it and the app
+  imports it directly.
+- 2026-08-30 — Phase 8 — Built `queue/queues.ts` (three named queues:
+  `resume.parse`, `application.rank`, `notification.send`, one shared
+  Redis connection, 5 attempts with exponential backoff by default) and
+  `queue/createWorker.ts` (wraps `bullmq.Worker` with structured
+  completed/failed logging and an `onFinalFailure` hook that only fires
+  once all retry attempts are actually exhausted).
+- 2026-08-30 — Phase 8 — Only wired `resume.parse` into a real flow
+  (`ResumeService.uploadResume` now enqueues after the DB/storage writes
+  succeed, and doesn't fail the upload if enqueueing itself fails).
+  Left `application.rank` and `notification.send` unwired on purpose —
+  Phase 10 and Phase 12 each explicitly own triggering their own queue.
+- 2026-08-30 — Phase 8 — `resumeParse.worker.ts` is a deliberate
+  mechanical placeholder: it does the real `UPLOADED → PROCESSING →
+  PARSED/FAILED` lifecycle, is idempotent against redelivery (skips if
+  already `PARSED`, but *not* if `PROCESSING` — otherwise a crash
+  mid-attempt would strand it there forever), and hooks into retry/
+  final-failure — but doesn't do real text extraction or call
+  OpenRouter yet. That's Phase 9, replacing only the middle of the
+  processor.
+- 2026-08-30 — Phase 8 — Verified retry behavior against the real local
+  Redis instance, not mocked (`queue/createWorker.test.ts`): a job that
+  fails twice then succeeds shows `attemptsMade: 3`; a job that always
+  fails triggers `onFinalFailure` exactly once, only after exhausting
+  its configured attempts.
+- 2026-08-30 — Phase 8 — Verified live end to end with the API and a
+  worker running as genuinely separate processes: resume upload
+  returned immediately with status `UPLOADED`, and the worker process
+  independently moved it to `PARSED` in Postgres shortly after. 65/65
+  `bun test` passing, `bunx tsc --noEmit` clean.

@@ -1,5 +1,8 @@
 import type { Resume } from "@atcon/database";
+import type { Queue } from "bullmq";
+import type { ResumeParseJobData } from "../queue/jobs.ts";
 import { ConflictError, NotFoundError } from "../shared/http/HttpError.ts";
+import { logger } from "../shared/logger.ts";
 import type { ResumeStorage } from "../shared/storage/resumeStorage.ts";
 import { CandidateRepository } from "./candidate.repository.ts";
 import { ResumeRepository } from "./resume.repository.ts";
@@ -10,6 +13,7 @@ export class ResumeService {
     private readonly resumeRepository: ResumeRepository,
     private readonly candidateRepository: CandidateRepository,
     private readonly resumeStorage: ResumeStorage,
+    private readonly resumeParseQueue: Queue<ResumeParseJobData>,
   ) {}
 
   async uploadResume(userId: string, file: IncomingResumeFile): Promise<Resume> {
@@ -29,8 +33,9 @@ export class ResumeService {
     const key = this.resumeStorage.buildKey(candidate.id, file.name);
     await this.resumeStorage.upload(key, file.data, file.type);
 
+    let resume: Resume;
     try {
-      return await this.resumeRepository.create({
+      resume = await this.resumeRepository.create({
         candidateId: candidate.id,
         fileUrl: key,
         originalFileName: file.name,
@@ -41,6 +46,19 @@ export class ResumeService {
       await this.resumeStorage.delete(key).catch(() => {});
       throw error;
     }
+
+    // The resume is already durably stored — a queue outage shouldn't fail
+    // the upload itself, just delay parsing.
+    try {
+      await this.resumeParseQueue.add("parse", { resumeId: resume.id });
+    } catch (error) {
+      logger.warn("Failed to enqueue resume.parse job", {
+        resumeId: resume.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return resume;
   }
 
   async listResumes(userId: string): Promise<Resume[]> {

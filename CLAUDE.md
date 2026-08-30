@@ -72,6 +72,7 @@ From `apps/backend`:
 
 ```
 bun run dev           # start backend with hot reload
+bun run worker        # start background workers (separate process)
 bun test              # run test suite
 bunx tsc --noEmit     # TypeScript check
 ```

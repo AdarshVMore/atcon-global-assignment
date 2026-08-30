@@ -63,9 +63,14 @@ bunx prisma db seed       # seed a recruiter, candidate, job, and application
 
 cd ../../apps/backend
 bun run dev               # start backend with hot reload
+bun run worker            # start background workers (separate process)
 bun test                  # run test suite
 bunx tsc --noEmit         # TypeScript check
 ```
+
+The API and the background workers are separate processes — `bun run dev`
+never blocks a request on queue processing, and `bun run worker` can be
+scaled or restarted independently.
 
 ## Environment Variables
 
