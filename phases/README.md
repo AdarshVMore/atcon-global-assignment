@@ -22,7 +22,7 @@ code exists — it must be implemented and verified. See the
 | 7 | [07-application-pipeline-state-machine.md](07-application-pipeline-state-machine.md) | Configurable hiring-stage transitions | [x] Complete |
 | 8 | [08-redis-and-background-jobs.md](08-redis-and-background-jobs.md) | Asynchronous job processing infrastructure | [x] Complete |
 | 9 | [09-resume-parser-worker.md](09-resume-parser-worker.md) | Parse resumes asynchronously | [x] Complete |
-| 10 | [10-candidate-ranking.md](10-candidate-ranking.md) | Asynchronous candidate/job matching | [ ] Not started |
+| 10 | [10-candidate-ranking.md](10-candidate-ranking.md) | Asynchronous candidate/job matching | [x] Complete |
 | 11 | [11-interviews.md](11-interviews.md) | Interview scheduling and structured scorecards | [ ] Not started |
 | 12 | [12-notifications.md](12-notifications.md) | Notify users about recruitment events | [ ] Not started |
 | 13 | [13-dashboard-and-analytics.md](13-dashboard-and-analytics.md) | Recruiter dashboard and pipeline health data | [ ] Not started |

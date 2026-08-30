@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { JobStatus, Role, type Job, type JobStage, type Resume } from "@atcon/database";
+import type { Queue } from "bullmq";
 import { ApplicationService } from "./application.service.ts";
 import type { ApplicationRepository, ApplicationWithRelations } from "./application.repository.ts";
 import type { CandidateRepository, CandidateWithUser } from "../candidates/candidate.repository.ts";
+import type { ApplicationRankJobData } from "../queue/jobs.ts";
 import type { ResumeRepository } from "../candidates/resume.repository.ts";
 import type { JobRepository, JobWithStages } from "../jobs/job.repository.ts";
 
@@ -129,6 +131,10 @@ function fakeResumeRepository(overrides: Partial<ResumeRepository> = {}): Resume
   } as ResumeRepository;
 }
 
+function fakeRankQueue(): Queue<ApplicationRankJobData> {
+  return { add: async () => ({}) as never } as unknown as Queue<ApplicationRankJobData>;
+}
+
 function buildService(overrides: {
   applicationRepository?: Partial<ApplicationRepository>;
   jobRepository?: Partial<JobRepository>;
@@ -140,6 +146,7 @@ function buildService(overrides: {
     fakeJobRepository(overrides.jobRepository),
     fakeCandidateRepository(overrides.candidateRepository),
     fakeResumeRepository(overrides.resumeRepository),
+    fakeRankQueue(),
   );
 }
 

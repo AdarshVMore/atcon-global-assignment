@@ -17,7 +17,7 @@ import { HealthService } from "./health/health.service.ts";
 import { JobController } from "./jobs/job.controller.ts";
 import { JobRepository } from "./jobs/job.repository.ts";
 import { JobService } from "./jobs/job.service.ts";
-import { resumeParseQueue } from "./queue/queues.ts";
+import { applicationRankQueue, resumeParseQueue } from "./queue/queues.ts";
 import { ResumeStorage } from "./shared/storage/resumeStorage.ts";
 import { withErrorHandling } from "./shared/http/withErrorHandling.ts";
 
@@ -47,6 +47,7 @@ export function buildRoutes() {
     jobRepository,
     candidateRepository,
     resumeRepository,
+    applicationRankQueue,
   );
   const applicationController = new ApplicationController(applicationService);
 

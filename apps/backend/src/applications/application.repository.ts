@@ -1,4 +1,4 @@
-import { prisma, type Application, type ApplicationStageHistory, type JobStage } from "@atcon/database";
+import { prisma, type Application, type ApplicationStageHistory, type JobStage, type Prisma } from "@atcon/database";
 
 export type ApplicationWithRelations = Application & {
   job: { id: string; title: string; recruiterId: string; status: string };
@@ -20,6 +20,11 @@ export interface MoveToStageInput {
   toStageId: string;
   changedById: string;
   reason?: string;
+}
+
+export interface RankingResultInput {
+  score: number;
+  explanation: Prisma.InputJsonValue;
 }
 
 const detailInclude = {
@@ -109,5 +114,13 @@ export class ApplicationRepository {
   async existsForCandidateAndJob(candidateId: string, jobId: string): Promise<boolean> {
     const count = await prisma.application.count({ where: { candidateId, jobId } });
     return count > 0;
+  }
+
+  updateRanking(applicationId: string, input: RankingResultInput): Promise<ApplicationWithRelations> {
+    return prisma.application.update({
+      where: { id: applicationId },
+      data: { rankingScore: input.score, rankingExplanation: input.explanation, rankedAt: new Date() },
+      include: detailInclude,
+    });
   }
 }

@@ -267,3 +267,31 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   immediately, one attempt, clear `parseError`, file and DB row
   untouched otherwise). 82/82 `bun test` passing, `bunx tsc --noEmit`
   clean.
+- 2026-08-30 — Phase 10 — Built candidate/job ranking:
+  `ranking/deterministicScore.ts` (keyword overlap, always computed)
+  and `ranking/candidateJobMatcher.ts` (LLM semantic score, only when
+  `OPENROUTER_API_KEY` is set — same key gap as Phase 9, unit-tested
+  with a fake client, not live-verified against the real API).
+  `ApplicationService.applyToJob` now enqueues an `application.rank`
+  job after the `Application` commits, same non-blocking pattern as the
+  Phase 8 resume enqueue.
+- 2026-08-30 — Phase 10 — Reused `OPENROUTER_MODEL` from Phase 9 rather
+  than adding a second ranking-specific model env var — same
+  underlying "cheap model by default, configurable" concern, no stated
+  need for the two features to use different models.
+- 2026-08-30 — Phase 10 — The deterministic score is always computed
+  regardless of LLM availability; when an LLM score is available it
+  becomes the stored `rankingScore`, but the deterministic result stays
+  in `rankingExplanation` alongside it so the signal isn't lost either
+  way. A resume that hasn't finished parsing yet degrades to an empty
+  candidate signal (low/zero score) instead of crashing the job — the
+  resume-parse and application-rank queues are independent, so that
+  race is possible in principle, if unlikely in practice.
+- 2026-08-30 — Phase 10 — Hit a rough edge live-testing: applying with
+  a resume left over from earlier Phase 8 testing (processed by the old
+  placeholder worker, which never wrote `parsedData`) correctly scored
+  0 — not a bug, just stale test data from iterating across phases in
+  the same dev database. Re-verified with a freshly uploaded resume
+  through the real Phase 9 parser and got a real positive score with
+  actual matched keywords, confirming the logic itself is correct.
+  96/96 `bun test` passing, `bunx tsc --noEmit` clean.

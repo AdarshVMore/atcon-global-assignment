@@ -1,9 +1,12 @@
 import { JobStatus, Role } from "@atcon/database";
+import type { Queue } from "bullmq";
 import type { AuthenticatedUser } from "../auth/types.ts";
 import { CandidateRepository } from "../candidates/candidate.repository.ts";
 import { ResumeRepository } from "../candidates/resume.repository.ts";
 import { JobRepository } from "../jobs/job.repository.ts";
+import type { ApplicationRankJobData } from "../queue/jobs.ts";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../shared/http/HttpError.ts";
+import { logger } from "../shared/logger.ts";
 import { isUniqueConstraintViolation } from "../shared/prismaErrors.ts";
 import { ApplicationRepository, type ApplicationWithRelations } from "./application.repository.ts";
 import type { CreateApplicationRequestBody, MoveApplicationStageRequestBody } from "./dto.ts";
@@ -15,6 +18,7 @@ export class ApplicationService {
     private readonly jobRepository: JobRepository,
     private readonly candidateRepository: CandidateRepository,
     private readonly resumeRepository: ResumeRepository,
+    private readonly applicationRankQueue: Queue<ApplicationRankJobData>,
   ) {}
 
   async applyToJob(
@@ -51,8 +55,9 @@ export class ApplicationService {
       throw new ConflictError("This job has no pipeline stages configured");
     }
 
+    let application: ApplicationWithRelations;
     try {
-      return await this.applicationRepository.create({
+      application = await this.applicationRepository.create({
         candidateId: candidate.id,
         jobId,
         currentStageId: firstStage.id,
@@ -65,6 +70,19 @@ export class ApplicationService {
       }
       throw error;
     }
+
+    // The application already exists — ranking is derived data, so a queue
+    // outage shouldn't undo a successful application.
+    try {
+      await this.applicationRankQueue.add("rank", { applicationId: application.id });
+    } catch (error) {
+      logger.warn("Failed to enqueue application.rank job", {
+        applicationId: application.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return application;
   }
 
   async getApplicationForViewer(applicationId: string, viewer: AuthenticatedUser): Promise<ApplicationWithRelations> {
