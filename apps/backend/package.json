@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@atcon/database": "workspace:*"
+    "@atcon/database": "workspace:*",
+    "jose": "^6.2.10"
   },
   "devDependencies": {
     "@types/bun": "latest"

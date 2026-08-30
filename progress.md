@@ -58,3 +58,31 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   and health controller (mocked service, no live DB needed); verified
   `bunx tsc --noEmit` (exit 0) and a real `bun run start` →
   `GET /health` → `200 {"status":"ok"}` with the database check logged.
+- 2026-08-30 — Phase 3 — Added `jose` to `apps/backend` for JWT
+  signing/verification (HS256) — hand-rolling JWT parsing/signature
+  checks isn't worth the security risk versus a small, well-audited
+  dependency. Password hashing uses `Bun.password` (argon2id), no
+  extra dependency needed there.
+- 2026-08-30 — Phase 3 — Built `POST /auth/register`, `POST /auth/login`,
+  and `GET /me` end to end: `UserRepository` (creates `User` +, for
+  `CANDIDATE`, a linked `Candidate` row, in one transaction),
+  `AuthService` (manual boundary validation — email format, password
+  length, role — no Zod, per CLAUDE.md), `AuthController`,
+  `requireAuth`/`requireRole` middleware composing on top of
+  `withErrorHandling`.
+- 2026-08-30 — Phase 3 — Login returns the same "Invalid email or
+  password" message for a wrong password and a nonexistent email, to
+  avoid leaking which emails are registered.
+- 2026-08-30 — Phase 3 — Hit a real bug live-testing against the actual
+  database: the pg driver adapter reports Postgres unique-constraint
+  violations via `meta.driverAdapterError.cause.constraint.index`, not
+  Prisma's usual `meta.target` column array, so the first version of the
+  duplicate-email → 409 mapping silently fell through to a generic 500.
+  Fixed `isEmailUniqueConstraintViolation` to check both shapes and
+  added a regression test for the driver-adapter shape specifically.
+- 2026-08-30 — Phase 3 — Verified live: register candidate → 201 with a
+  linked `Candidate` row confirmed in Postgres; register recruiter → 201
+  with no candidate row; duplicate email → 409; wrong password → 401;
+  malformed JSON body → 400; `/me` with a valid token → 200 own profile;
+  `/me` without a token → 401. 19/19 `bun test` passing,
+  `bunx tsc --noEmit` clean.
