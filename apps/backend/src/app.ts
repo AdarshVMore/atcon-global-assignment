@@ -99,5 +99,11 @@ export function buildRoutes() {
     "/applications/:applicationId": {
       GET: withErrorHandling(requireAuth(applicationController.getById)),
     },
+    "/applications/:applicationId/history": {
+      GET: withErrorHandling(requireAuth(applicationController.getHistory)),
+    },
+    "/applications/:applicationId/stage": {
+      PATCH: withErrorHandling(requireRole([Role.RECRUITER], applicationController.moveStage)),
+    },
   };
 }

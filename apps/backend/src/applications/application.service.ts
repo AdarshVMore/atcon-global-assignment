@@ -3,10 +3,11 @@ import type { AuthenticatedUser } from "../auth/types.ts";
 import { CandidateRepository } from "../candidates/candidate.repository.ts";
 import { ResumeRepository } from "../candidates/resume.repository.ts";
 import { JobRepository } from "../jobs/job.repository.ts";
-import { BadRequestError, ConflictError, NotFoundError } from "../shared/http/HttpError.ts";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../shared/http/HttpError.ts";
 import { isUniqueConstraintViolation } from "../shared/prismaErrors.ts";
 import { ApplicationRepository, type ApplicationWithRelations } from "./application.repository.ts";
-import type { CreateApplicationRequestBody } from "./dto.ts";
+import type { CreateApplicationRequestBody, MoveApplicationStageRequestBody } from "./dto.ts";
+import { assertValidStageTransition } from "./pipeline.ts";
 
 export class ApplicationService {
   constructor(
@@ -91,6 +92,44 @@ export class ApplicationService {
       throw new NotFoundError("Candidate profile not found");
     }
     return this.applicationRepository.findByCandidateId(candidate.id);
+  }
+
+  async moveApplicationToStage(
+    recruiterId: string,
+    applicationId: string,
+    input: MoveApplicationStageRequestBody,
+  ): Promise<ApplicationWithRelations> {
+    if (typeof input.stageId !== "string" || input.stageId.trim().length === 0) {
+      throw new BadRequestError("stageId is required");
+    }
+    const reason = typeof input.reason === "string" && input.reason.trim().length > 0 ? input.reason.trim() : undefined;
+
+    const application = await this.applicationRepository.findById(applicationId);
+    if (!application) {
+      throw new NotFoundError("Application not found");
+    }
+    if (application.job.recruiterId !== recruiterId) {
+      throw new ForbiddenError("You do not own the job this application belongs to");
+    }
+
+    const job = await this.jobRepository.findById(application.jobId);
+    if (!job) {
+      throw new NotFoundError("Job not found");
+    }
+    const targetStage = job.stages.find((stage) => stage.id === input.stageId);
+    if (!targetStage) {
+      throw new BadRequestError("stageId must be a stage on this application's job");
+    }
+
+    assertValidStageTransition(application.currentStage, targetStage);
+
+    return this.applicationRepository.moveToStage({
+      applicationId,
+      fromStageId: application.currentStage.id,
+      toStageId: targetStage.id,
+      changedById: recruiterId,
+      reason,
+    });
   }
 
   private async assertCanView(application: ApplicationWithRelations, viewer: AuthenticatedUser): Promise<void> {

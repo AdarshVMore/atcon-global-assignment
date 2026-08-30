@@ -14,6 +14,14 @@ export interface CreateApplicationInput {
   changedById: string;
 }
 
+export interface MoveToStageInput {
+  applicationId: string;
+  fromStageId: string;
+  toStageId: string;
+  changedById: string;
+  reason?: string;
+}
+
 const detailInclude = {
   job: { select: { id: true, title: true, recruiterId: true, status: true } },
   currentStage: true,
@@ -43,6 +51,38 @@ export class ApplicationRepository {
       });
 
       return tx.application.findUniqueOrThrow({ where: { id: application.id }, include: detailInclude });
+    });
+  }
+
+  moveToStage(input: MoveToStageInput): Promise<ApplicationWithRelations> {
+    return prisma.$transaction(async (tx) => {
+      await tx.application.update({
+        where: { id: input.applicationId },
+        data: { currentStageId: input.toStageId },
+      });
+
+      await tx.applicationStageHistory.create({
+        data: {
+          applicationId: input.applicationId,
+          fromStageId: input.fromStageId,
+          toStageId: input.toStageId,
+          changedById: input.changedById,
+          reason: input.reason,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: input.changedById,
+          action: "APPLICATION_STAGE_CHANGED",
+          resourceType: "Application",
+          resourceId: input.applicationId,
+          previousState: { stageId: input.fromStageId },
+          newState: { stageId: input.toStageId },
+        },
+      });
+
+      return tx.application.findUniqueOrThrow({ where: { id: input.applicationId }, include: detailInclude });
     });
   }
 

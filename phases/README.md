@@ -19,7 +19,7 @@ code exists — it must be implemented and verified. See the
 | 4 | [04-job-management.md](04-job-management.md) | Recruiter job creation and configurable stages | [x] Complete |
 | 5 | [05-candidate-and-resume-management.md](05-candidate-and-resume-management.md) | Candidate profiles and resume uploads | [x] Complete |
 | 6 | [06-applications.md](06-applications.md) | Candidates apply, recruiters manage applications | [x] Complete |
-| 7 | [07-application-pipeline-state-machine.md](07-application-pipeline-state-machine.md) | Configurable hiring-stage transitions | [ ] Not started |
+| 7 | [07-application-pipeline-state-machine.md](07-application-pipeline-state-machine.md) | Configurable hiring-stage transitions | [x] Complete |
 | 8 | [08-redis-and-background-jobs.md](08-redis-and-background-jobs.md) | Asynchronous job processing infrastructure | [ ] Not started |
 | 9 | [09-resume-parser-worker.md](09-resume-parser-worker.md) | Parse resumes asynchronously | [ ] Not started |
 | 10 | [10-candidate-ranking.md](10-candidate-ranking.md) | Asynchronous candidate/job matching | [ ] Not started |

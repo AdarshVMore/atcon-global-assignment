@@ -94,6 +94,7 @@ function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {
     findByCandidateId: async () => [],
     findByRecruiter: async () => [],
     existsForCandidateAndJob: async () => false,
+    moveToStage: async (input) => buildApplication({ currentStageId: input.toStageId }),
     ...overrides,
   } as ApplicationRepository;
 }
@@ -251,5 +252,83 @@ describe("ApplicationService.listApplicationsForViewer", () => {
     await expect(
       service.listApplicationsForViewer({ id: RECRUITER_ID, email: "r@atcon.dev", role: Role.RECRUITER }, JOB_ID),
     ).rejects.toThrow("Job not found");
+  });
+});
+
+describe("ApplicationService.moveApplicationToStage", () => {
+  const screeningStage = buildStage({ id: "stage-2", order: 2 });
+  const twoStageJob = buildJob({ stages: [buildStage({ id: "stage-1", order: 1 }), screeningStage] });
+
+  test("rejects a missing stageId", async () => {
+    const service = buildService({
+      applicationRepository: { findById: async () => buildApplication() },
+      jobRepository: { findById: async () => twoStageJob },
+    });
+
+    await expect(service.moveApplicationToStage(RECRUITER_ID, "application-1", {})).rejects.toThrow(
+      "stageId is required",
+    );
+  });
+
+  test("rejects a recruiter who doesn't own the job", async () => {
+    const service = buildService({
+      applicationRepository: { findById: async () => buildApplication() },
+      jobRepository: { findById: async () => twoStageJob },
+    });
+
+    await expect(
+      service.moveApplicationToStage(OTHER_RECRUITER_ID, "application-1", { stageId: "stage-2" }),
+    ).rejects.toThrow("You do not own the job this application belongs to");
+  });
+
+  test("rejects a stageId that isn't on the application's job", async () => {
+    const service = buildService({
+      applicationRepository: { findById: async () => buildApplication() },
+      jobRepository: { findById: async () => twoStageJob },
+    });
+
+    await expect(
+      service.moveApplicationToStage(RECRUITER_ID, "application-1", { stageId: "stage-from-another-job" }),
+    ).rejects.toThrow("stageId must be a stage on this application's job");
+  });
+
+  test("moves the application and records who made the change", async () => {
+    let moveInput: unknown;
+    const service = buildService({
+      applicationRepository: {
+        findById: async () => buildApplication({ currentStage: buildStage({ id: "stage-1", order: 1 }) }),
+        moveToStage: async (input) => {
+          moveInput = input;
+          return buildApplication({ currentStageId: input.toStageId, currentStage: screeningStage });
+        },
+      },
+      jobRepository: { findById: async () => twoStageJob },
+    });
+
+    const result = await service.moveApplicationToStage(RECRUITER_ID, "application-1", {
+      stageId: "stage-2",
+      reason: "Great phone screen",
+    });
+
+    expect(result.currentStageId).toBe("stage-2");
+    expect(moveInput).toEqual({
+      applicationId: "application-1",
+      fromStageId: "stage-1",
+      toStageId: "stage-2",
+      changedById: RECRUITER_ID,
+      reason: "Great phone screen",
+    });
+  });
+
+  test("rejects moving an application that already reached a terminal stage", async () => {
+    const terminalStage = buildStage({ id: "stage-final", order: 5, isTerminal: true });
+    const service = buildService({
+      applicationRepository: { findById: async () => buildApplication({ currentStage: terminalStage }) },
+      jobRepository: { findById: async () => buildJob({ stages: [terminalStage, screeningStage] }) },
+    });
+
+    await expect(
+      service.moveApplicationToStage(RECRUITER_ID, "application-1", { stageId: "stage-2" }),
+    ).rejects.toThrow("This application has already reached a terminal stage");
   });
 });

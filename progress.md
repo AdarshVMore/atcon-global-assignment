@@ -165,3 +165,25 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   candidate and the owning recruiter can both view/list it, ownership
   enforced in tests for the non-owning cases. 50/50 `bun test` passing,
   `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 7 — Built the stage-transition rule as a generic
+  function (`applications/pipeline.ts`) instead of hardcoding specific
+  stage names, since stages are configurable per job: advance to the
+  immediate next stage by `order`, or jump straight to any terminal
+  stage (covers rejection — or a fast-tracked hire — from anywhere);
+  nothing moves once terminal, no regressing to an earlier stage.
+- 2026-08-30 — Phase 7 — `PATCH /applications/:applicationId/stage`
+  writes the `Application` update, the new `ApplicationStageHistory`
+  row, and an `AuditLog` row (`APPLICATION_STAGE_CHANGED`) all in one
+  `prisma.$transaction`. This is the first real use of the `AuditLog`
+  table from Phase 1 — proves the general audit mechanism works on the
+  one action `state-machine.md` calls out by name, rather than leaving
+  that table unused through the whole assignment.
+- 2026-08-30 — Phase 7 — Added `GET /applications/:applicationId/history`
+  (in api-design.md's examples, one-line addition since `stageHistory`
+  was already loaded on every application fetch).
+- 2026-08-30 — Phase 7 — Verified live end to end: candidate blocked
+  from moving stages (403), skip-ahead rejected (400), valid
+  Applied → Screening move succeeds with history + audit log entries
+  (confirmed via `psql`), jump straight to a terminal stage succeeds,
+  any further move after that is rejected (409). 61/61 `bun test`
+  passing, `bunx tsc --noEmit` clean.
