@@ -15,8 +15,11 @@ implementation progress.
 
 ## Status
 
-Backend complete (Phases 0–14 of [phases/](phases/README.md)). Frontend
-and LiveKit are deferred (see [CLAUDE.md](CLAUDE.md#current-scope)).
+Backend complete (Phases 0–14 of [phases/](phases/README.md)). LiveKit
+was evaluated and deliberately deferred, not skipped —see
+[phases/15-livekit.md](phases/15-livekit.md) for the reasoning. Frontend
+was out of scope for this engagement from the start (see
+[CLAUDE.md](CLAUDE.md#current-scope)).
 
 ## Tech Stack
 
@@ -29,6 +32,72 @@ and LiveKit are deferred (see [CLAUDE.md](CLAUDE.md#current-scope)).
 - **LLM:** OpenRouter, via the `openai` SDK pointed at OpenRouter's
   OpenAI-compatible endpoint
 - **Resume text extraction:** `pdf-parse` (PDF), `mammoth` (DOCX)
+
+## Technical Overview
+
+**Architecture.** A modular monolith, not microservices — one deployable
+backend with clearly separated domain modules (`auth`, `jobs`,
+`candidates`, `applications`, `interviews`, `notifications`,
+`dashboard`, `ranking`), each following the same
+Controller → Service → Repository → Prisma → PostgreSQL shape for
+synchronous work, and Service → Queue → Worker → Repository → PostgreSQL
+for asynchronous work (resume parsing, ranking, notifications). See
+[architecture/README.md](architecture/README.md) for the full diagram
+and per-concern design docs. The database is the single source of
+truth; Redis holds only transient queue state, never business data.
+
+**Why these tools.** Each dependency was picked for a specific,
+narrow reason rather than by default — documented inline where it
+mattered: BullMQ over hand-rolling a queue on raw Redis (retry/backoff
+correctness is easy to get subtly wrong); the official `openai` SDK
+over a dedicated "OpenRouter SDK" (OpenRouter's API is OpenAI-compatible,
+and the only OpenRouter-branded npm package is a much heavier Vercel
+`ai` SDK provider); `jose` over hand-rolled JWT (signature verification
+is exactly the kind of thing worth getting from a small, well-audited
+library); Bun's built-in `S3Client`/`password`/`CryptoHasher` wherever
+they cover the need, instead of pulling in AWS SDKs or bcrypt. See each
+phase's own file under [phases/](phases/README.md) for the full
+reasoning behind its specific choices.
+
+**System design approach.** Built and verified phase by phase, in
+dependency order (schema → auth → jobs → candidates → applications →
+pipeline → background jobs → resume parsing → ranking → interviews →
+notifications → dashboard → reliability review), with every phase
+live-tested against real running infrastructure (real Postgres, real
+Redis, real MinIO, real HTTP requests) before being marked complete —
+not just unit tests against mocks. Business-critical paths (auth,
+duplicate detection, stage transitions, worker idempotency/retry) have
+targeted `bun test` coverage; deterministic logic is unit-tested, and
+LLM-dependent code is tested against a fake client since no live
+OpenRouter key was available while building this (see
+[Known Limitations](#known-limitations)).
+
+**Scalability considerations.** This is explicitly not built for
+production scale, but the shape doesn't fight it either:
+- The API and the background workers are already separate processes
+  (`bun run dev` vs `bun run worker`) — the API layer and each queue's
+  worker can each be scaled independently (more worker processes, more
+  `concurrency` per `bullmq.Worker`) without code changes.
+- Async side effects (resume parsing, ranking, notifications) never
+  block a request — the request only ever waits on the synchronous
+  business-state write, matching the architecture principle "persist
+  business state before triggering secondary processing."
+- PostgreSQL does the heavy aggregation work for the dashboard (Prisma
+  query builder, which still executes as SQL) rather than pulling rows
+  into the application to aggregate in memory, with one deliberate
+  exception (averaging a handful of time-to-hire rows in JS, since a
+  hand-written SQL aggregate would trade readability for no real
+  benefit at this data scale).
+- Resume files live in object storage, never in Postgres — the
+  database stays small and query-fast regardless of how much resume
+  content accumulates.
+- The obvious next steps if this needed to scale further: read
+  replicas for the dashboard's aggregate queries, moving `AuditLog`/
+  `ApplicationStageHistory` to a cheaper cold-storage tier once they
+  grow large, and horizontal worker scaling per queue based on actual
+  queue depth. None of this was built — it would be premature
+  optimization for a case study — but the module boundaries don't
+  block it either.
 
 ## Monorepo Layout
 

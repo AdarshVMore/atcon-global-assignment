@@ -428,3 +428,35 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   the full reasoning and a concrete "if revisited later" integration
   point (`Interview.meetingUrl` already exists for this) in
   `phases/15-livekit.md`.
+- 2026-08-30 — Phase 16 — Read the original assignment document
+  directly (`Case Study - Full Stack Developer (Talent &
+  Recruitment).md`) as a final cross-check, not just the derived
+  architecture/phase docs — every "Build a platform where users can..."
+  bullet and every "Expected Capabilities" bullet is covered, mapped
+  item-by-item in `phases/assignment-coverage-checklist.md`.
+- 2026-08-30 — Phase 16 — Added a Technical Overview section to the
+  README (architecture decisions, why each major tool was chosen,
+  system design approach, scalability considerations) — the one piece
+  of the assignment's explicit "Please Include" list that wasn't yet
+  covered after Phase 14's rewrite.
+- 2026-08-30 — Phase 16 — Verified Git history and secret hygiene:
+  single author throughout (`AdarshVMore <skullcrushermore@gmail.com>`,
+  matching Phase 0's confirmed identity), no Claude/Anthropic
+  co-author attribution anywhere (the one text match was a legitimate
+  reference to `CLAUDE.md`, the project's own instructions file), no
+  `.env` files tracked, no secrets found in the full commit history.
+- 2026-08-30 — Phase 16 — Ran one consolidated live end-to-end pass
+  covering the entire assignment-coverage checklist in a single flow:
+  register recruiter, register candidate, duplicate registration
+  rejected (409), publish a job, upload a resume (parsed
+  asynchronously), duplicate resume rejected (409), apply, move a
+  stage (history entries went from 1 to 2, confirming the audit trail),
+  schedule + complete an interview, submit a structured scorecard,
+  in-app notifications landed for both the recruiter and the
+  candidate, dashboard pipeline health and interview counts reflected
+  the exact flow just run, and a candidate was blocked (403) from a
+  recruiter-only action. Everything passed on the first run.
+- 2026-08-30 — All backend phases (0–14, 16) complete; Phase 15
+  (LiveKit) evaluated and deliberately deferred with documented
+  reasoning. 125/125 `bun test` passing, `bunx tsc --noEmit` clean on
+  both workspaces. Backend implementation for this assignment is done.
