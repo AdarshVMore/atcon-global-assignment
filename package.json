@@ -1,0 +1,8 @@
+{
+  "name": "atcon-global-assignment",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

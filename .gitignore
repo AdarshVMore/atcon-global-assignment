@@ -5,5 +5,7 @@ build/
 .env.*
 !.env.example
 *.log
+*.tsbuildinfo
+coverage/
 .DS_Store
 .claude/settings.local.json
