@@ -108,3 +108,35 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   candidate gets 404 on the draft, candidate's `GET /jobs` excludes it,
   recruiter publishes it, candidate then sees it (200). 30/30 `bun test`
   passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 5 — Set up local object storage: MinIO via Docker
+  (`atcon-minio` container) plus the `mc` CLI (Homebrew) to create the
+  `ats-resumes` bucket. Used Bun's built-in `Bun.S3Client` instead of an
+  AWS SDK — one less dependency, and it's S3-compatible so MinIO now
+  and real S3/R2 later both work through the same code by changing env
+  vars.
+- 2026-08-30 — Phase 5 — Built `GET/PATCH /candidates/me` and
+  `POST/GET /candidates/me/resumes`. Used `/candidates/me` rather than
+  the `/candidates/:candidateId` shape in api-design.md's examples,
+  since nothing currently hands a candidate their own `candidateId` —
+  same self-resource pattern as `GET /me` from Phase 3. Noted in the
+  phase file that recruiter read access to a candidate profile will
+  likely route through `GET /applications/:id` in Phase 6 instead of an
+  open `/candidates/:id`.
+- 2026-08-30 — Phase 5 — Resume upload computes the SHA-256 hash and
+  checks for a same-candidate duplicate *before* writing to storage (no
+  wasted upload on a rejected duplicate); for a genuinely new file,
+  storage write happens before the DB row, and the object gets deleted
+  if the DB insert then fails. Cross-candidate hash matching and fuzzy
+  matching (architecture doc's Level 3, explicitly "if time allows")
+  are documented as not yet implemented, not silently skipped.
+- 2026-08-30 — Phase 5 — Caught a real bug before calling this done:
+  `GET /candidates/me` was returning the full Prisma `User` record
+  including `passwordHash` in the response. Added a `CandidateProfile`
+  mapper (mirrors `toPublicUser` from auth) and confirmed live that the
+  hash no longer appears in the response.
+- 2026-08-30 — Phase 5 — Verified live: candidate profile get/update,
+  phone format validation, resume upload with a real file landing in
+  the MinIO bucket (confirmed via `mc ls`) and its metadata row in
+  Postgres, duplicate re-upload → 409, wrong file type → 400, recruiter
+  blocked from candidate routes → 403. 40/40 `bun test` passing,
+  `bunx tsc --noEmit` clean.

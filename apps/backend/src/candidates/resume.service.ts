@@ -1,0 +1,53 @@
+import type { Resume } from "@atcon/database";
+import { ConflictError, NotFoundError } from "../shared/http/HttpError.ts";
+import type { ResumeStorage } from "../shared/storage/resumeStorage.ts";
+import { CandidateRepository } from "./candidate.repository.ts";
+import { ResumeRepository } from "./resume.repository.ts";
+import { assertValidResumeFile, type IncomingResumeFile } from "./resumeValidation.ts";
+
+export class ResumeService {
+  constructor(
+    private readonly resumeRepository: ResumeRepository,
+    private readonly candidateRepository: CandidateRepository,
+    private readonly resumeStorage: ResumeStorage,
+  ) {}
+
+  async uploadResume(userId: string, file: IncomingResumeFile): Promise<Resume> {
+    const candidate = await this.candidateRepository.findByUserId(userId);
+    if (!candidate) {
+      throw new NotFoundError("Candidate profile not found");
+    }
+
+    assertValidResumeFile(file);
+
+    const hash = this.resumeStorage.hash(file.data);
+    const existing = await this.resumeRepository.findByCandidateAndHash(candidate.id, hash);
+    if (existing) {
+      throw new ConflictError("You have already uploaded this exact resume file");
+    }
+
+    const key = this.resumeStorage.buildKey(candidate.id, file.name);
+    await this.resumeStorage.upload(key, file.data, file.type);
+
+    try {
+      return await this.resumeRepository.create({
+        candidateId: candidate.id,
+        fileUrl: key,
+        originalFileName: file.name,
+        mimeType: file.type,
+        fileHash: hash,
+      });
+    } catch (error) {
+      await this.resumeStorage.delete(key).catch(() => {});
+      throw error;
+    }
+  }
+
+  async listResumes(userId: string): Promise<Resume[]> {
+    const candidate = await this.candidateRepository.findByUserId(userId);
+    if (!candidate) {
+      throw new NotFoundError("Candidate profile not found");
+    }
+    return this.resumeRepository.findByCandidateId(candidate.id);
+  }
+}

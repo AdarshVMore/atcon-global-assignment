@@ -1,5 +1,5 @@
-import { Prisma } from "@atcon/database";
 import { ConflictError, NotFoundError, UnauthorizedError } from "../shared/http/HttpError.ts";
+import { isUniqueConstraintViolation } from "../shared/prismaErrors.ts";
 import type { LoginRequestBody, RegisterRequestBody } from "./dto.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
 import { signAccessToken } from "./token.ts";
@@ -10,22 +10,6 @@ import { assertValidEmail, assertValidName, assertValidPassword, assertValidRole
 export interface AuthResult {
   user: PublicUser;
   token: string;
-}
-
-function isEmailUniqueConstraintViolation(error: unknown): boolean {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
-    return false;
-  }
-
-  // The pg driver adapter reports the Postgres constraint name instead of
-  // Prisma's usual `meta.target` column-name array.
-  if (Array.isArray(error.meta?.target)) {
-    return error.meta.target.includes("email");
-  }
-
-  const driverAdapterError = error.meta?.driverAdapterError as { cause?: { constraint?: { index?: string } } };
-  const constraintIndex = driverAdapterError?.cause?.constraint?.index;
-  return typeof constraintIndex === "string" && constraintIndex.toLowerCase().includes("email");
 }
 
 export class AuthService {
@@ -51,7 +35,7 @@ export class AuthService {
         phone,
       });
     } catch (error) {
-      if (isEmailUniqueConstraintViolation(error)) {
+      if (isUniqueConstraintViolation(error, "email")) {
         throw new ConflictError("An account with this email already exists");
       }
       throw error;

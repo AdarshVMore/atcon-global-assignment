@@ -34,14 +34,25 @@ phases/            # implementation checklist
 
 ## Local Setup
 
-Requires Bun, PostgreSQL, and Redis running locally.
+Requires Bun, PostgreSQL, Redis, and an S3-compatible object store
+(MinIO for local dev) running locally.
 
 ```bash
 bun install
 cp apps/backend/.env.example apps/backend/.env
 cp packages/database/.env.example packages/database/.env
 # fill in DATABASE_URL, REDIS_URL, JWT_SECRET, OPENROUTER_API_KEY, etc.
+
+# MinIO for local resume storage (S3-compatible)
+docker run -d --name atcon-minio -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+mc alias set local http://localhost:9000 minioadmin minioadmin
+mc mb local/ats-resumes
 ```
+
+The `S3_*` variables in `apps/backend/.env.example` already match these
+default MinIO credentials and bucket name.
 
 ## Running
 

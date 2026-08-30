@@ -3,11 +3,18 @@ import { AuthController } from "./auth/auth.controller.ts";
 import { AuthService } from "./auth/auth.service.ts";
 import { requireAuth, requireRole } from "./auth/middleware.ts";
 import { UserRepository } from "./auth/user.repository.ts";
+import { CandidateController } from "./candidates/candidate.controller.ts";
+import { CandidateRepository } from "./candidates/candidate.repository.ts";
+import { CandidateService } from "./candidates/candidate.service.ts";
+import { ResumeController } from "./candidates/resume.controller.ts";
+import { ResumeRepository } from "./candidates/resume.repository.ts";
+import { ResumeService } from "./candidates/resume.service.ts";
 import { HealthController } from "./health/health.controller.ts";
 import { HealthService } from "./health/health.service.ts";
 import { JobController } from "./jobs/job.controller.ts";
 import { JobRepository } from "./jobs/job.repository.ts";
 import { JobService } from "./jobs/job.service.ts";
+import { ResumeStorage } from "./shared/storage/resumeStorage.ts";
 import { withErrorHandling } from "./shared/http/withErrorHandling.ts";
 
 export function buildRoutes() {
@@ -20,6 +27,15 @@ export function buildRoutes() {
   const jobRepository = new JobRepository();
   const jobService = new JobService(jobRepository);
   const jobController = new JobController(jobService);
+
+  const candidateRepository = new CandidateRepository();
+  const candidateService = new CandidateService(candidateRepository);
+  const candidateController = new CandidateController(candidateService);
+
+  const resumeRepository = new ResumeRepository();
+  const resumeStorage = new ResumeStorage();
+  const resumeService = new ResumeService(resumeRepository, candidateRepository, resumeStorage);
+  const resumeController = new ResumeController(resumeService);
 
   return {
     "/health": {
@@ -53,6 +69,14 @@ export function buildRoutes() {
     },
     "/jobs/:jobId/stages/:stageId": {
       PATCH: withErrorHandling(requireRole([Role.RECRUITER], jobController.updateStage)),
+    },
+    "/candidates/me": {
+      GET: withErrorHandling(requireRole([Role.CANDIDATE], candidateController.getProfile)),
+      PATCH: withErrorHandling(requireRole([Role.CANDIDATE], candidateController.updateProfile)),
+    },
+    "/candidates/me/resumes": {
+      GET: withErrorHandling(requireRole([Role.CANDIDATE], resumeController.list)),
+      POST: withErrorHandling(requireRole([Role.CANDIDATE], resumeController.upload)),
     },
   };
 }
