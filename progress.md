@@ -416,3 +416,15 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   verification each time. 125/125 `bun test` passing, `bunx tsc
   --noEmit` clean on both workspaces, clean start verified for both the
   API and worker processes.
+- 2026-08-30 — Phase 15 — Evaluated and deferred LiveKit, rather than
+  implementing it. Reasoning: it's the lowest-priority item in
+  CLAUDE.md's assignment ordering, and everything higher-priority is
+  already complete; a token/room-generation endpoint can't be
+  meaningfully live-verified the way every other phase in this project
+  was, since LiveKit's actual value only shows up through a
+  video-capable frontend client that's explicitly out of scope for this
+  whole engagement; and the interview/scorecard functionality it would
+  sit on top of already fully works without it (Phase 11). Documented
+  the full reasoning and a concrete "if revisited later" integration
+  point (`Interview.meetingUrl` already exists for this) in
+  `phases/15-livekit.md`.

@@ -27,7 +27,7 @@ code exists — it must be implemented and verified. See the
 | 12 | [12-notifications.md](12-notifications.md) | Notify users about recruitment events | [x] Complete |
 | 13 | [13-dashboard-and-analytics.md](13-dashboard-and-analytics.md) | Recruiter dashboard and pipeline health data | [x] Complete (optional filtering skipped) |
 | 14 | [14-reliability-testing-and-cleanup.md](14-reliability-testing-and-cleanup.md) | Reliability review, testing, cleanup | [x] Complete |
-| 15 | [15-livekit.md](15-livekit.md) | Optional realtime interview functionality | [ ] Not started |
+| 15 | [15-livekit.md](15-livekit.md) | Optional realtime interview functionality | [!] Deferred (documented) |
 | 16 | [16-final-assignment-preparation.md](16-final-assignment-preparation.md) | Submission and demonstration prep | [ ] Not started |
 | — | [assignment-coverage-checklist.md](assignment-coverage-checklist.md) | Cross-cutting checklist to verify before submission | [ ] Not started |
 
