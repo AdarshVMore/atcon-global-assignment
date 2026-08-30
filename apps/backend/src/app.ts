@@ -14,6 +14,9 @@ import { ResumeRepository } from "./candidates/resume.repository.ts";
 import { ResumeService } from "./candidates/resume.service.ts";
 import { HealthController } from "./health/health.controller.ts";
 import { HealthService } from "./health/health.service.ts";
+import { InterviewController } from "./interviews/interview.controller.ts";
+import { InterviewRepository } from "./interviews/interview.repository.ts";
+import { InterviewService } from "./interviews/interview.service.ts";
 import { JobController } from "./jobs/job.controller.ts";
 import { JobRepository } from "./jobs/job.repository.ts";
 import { JobService } from "./jobs/job.service.ts";
@@ -50,6 +53,10 @@ export function buildRoutes() {
     applicationRankQueue,
   );
   const applicationController = new ApplicationController(applicationService);
+
+  const interviewRepository = new InterviewRepository();
+  const interviewService = new InterviewService(interviewRepository, applicationRepository, candidateRepository, userRepository);
+  const interviewController = new InterviewController(interviewService);
 
   return {
     "/health": {
@@ -106,6 +113,26 @@ export function buildRoutes() {
     },
     "/applications/:applicationId/stage": {
       PATCH: withErrorHandling(requireRole([Role.RECRUITER], applicationController.moveStage)),
+    },
+    "/applications/:applicationId/interviews": {
+      GET: withErrorHandling(requireAuth(interviewController.listForApplication)),
+      POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.schedule)),
+    },
+    "/interviews/:interviewId": {
+      GET: withErrorHandling(requireAuth(interviewController.getById)),
+      PATCH: withErrorHandling(requireRole([Role.RECRUITER], interviewController.update)),
+    },
+    "/interviews/:interviewId/reschedule": {
+      POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.reschedule)),
+    },
+    "/interviews/:interviewId/cancel": {
+      POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.cancel)),
+    },
+    "/interviews/:interviewId/complete": {
+      POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.complete)),
+    },
+    "/interviews/:interviewId/scorecard": {
+      POST: withErrorHandling(requireRole([Role.RECRUITER], interviewController.submitScorecard)),
     },
   };
 }

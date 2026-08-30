@@ -295,3 +295,29 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   through the real Phase 9 parser and got a real positive score with
   actual matched keywords, confirming the logic itself is correct.
   96/96 `bun test` passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 11 — Built interview scheduling and structured
+  scorecards: `POST /applications/:applicationId/interviews`, `GET
+  /applications/:applicationId/interviews`, `GET/PATCH
+  /interviews/:interviewId`, `/reschedule`, `/cancel`, `/complete`
+  (each a dedicated action, same explicit-transition pattern as Job
+  status in Phase 4 — not arbitrary `PATCH status=`), and `POST
+  /interviews/:interviewId/scorecard`.
+- 2026-08-30 — Phase 11 — Ownership model: only the recruiter who owns
+  the job can schedule/edit/reschedule/cancel/complete/score an
+  interview — `interviewerId` is descriptive metadata, not an access
+  boundary. Kept this consistent with how Job and Application ownership
+  already work rather than inventing a separate "interviewer
+  permission" tier with no other precedent in the codebase.
+  Scorecards can only be submitted once an interview is `COMPLETED` —
+  not explicitly required, but a natural reading of the lifecycle
+  (feedback about an interview that hasn't happened doesn't make
+  sense).
+  Score fields (technical/communication/problemSolving) are validated
+  1-5 in the service, not the schema — same "boundary validation lives
+  where the request enters, not in a new dependency" approach as
+  everywhere else.
+- 2026-08-30 — Phase 11 — Verified live end to end: candidate blocked
+  from scheduling (403), scorecard blocked before completion (409),
+  interview completed, scorecard accepted (201), duplicate scorecard
+  rejected (409), candidate can view their own interview and its
+  scorecard. 113/113 `bun test` passing, `bunx tsc --noEmit` clean.
