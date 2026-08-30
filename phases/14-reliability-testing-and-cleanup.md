@@ -105,3 +105,55 @@ requiring a fix.
 - [x] Documentation matches implementation (README rewritten;
       architecture docs annotated with implementation notes wherever
       the actual build made a judgment call worth recording).
+
+### Addendum: `apps/backend/src` restructure
+
+After this phase (and Phase 16) were complete, the user requested a
+folder restructure of `apps/backend` (a specific target tree), with an
+explicit instruction to keep all code behavior unchanged — files moved
+and were renamed, imports were updated to match, but no logic changed.
+
+**Before:** a flat `src/{auth,candidates,jobs,applications,interviews,
+notifications,dashboard,ranking,queue,workers,shared,database,config,
+health}/` layout, with resume-related files living inside `candidates/`
+and tests colocated next to their source files as `*.test.ts`.
+
+**After:** `src/modules/{auth,candidates,resumes,jobs,applications,
+interviews,notifications,ranking,dashboard,health}/` for domain logic;
+`resumes/` split out of `candidates/` as its own module; `queue/` split
+into `queues/` (`queue.service.ts`, `resume.queue.ts`, `ranking.queue.ts`,
+`notification.queue.ts` — each queue now owns its job-data type and
+queue-name constant, sharing one Redis connection and `defaultJobOptions`
+via `queue.service.ts` so behavior didn't change) plus
+`infrastructure/redis/`; `shared/http/` split into `middleware/`
+(`error.middleware.ts`), `shared/errors/`, `shared/types/`; `shared/llm/`
+and `shared/storage/` moved to `infrastructure/`; workers renamed to
+kebab-case (`resume-parser.worker.ts`, `application-ranking.worker.ts`,
+`notification.worker.ts`); tests moved to a top-level `tests/` directory
+mirroring `src/modules/`, with matching renames.
+
+Two deliberate deviations from the requested tree, both to honor "keep
+the code the same" over matching file names exactly:
+
+- **No barrel `index.ts` files.** The target tree listed one per
+  module, but adding them would mean introducing a new re-export
+  surface that didn't exist before — additive code, not a pure move.
+- **`ranking/` keeps `deterministicScore.ts` and
+  `candidateJobMatcher.ts` as separate files**, not merged into one
+  `ranking.service.ts` — they're independent units (one always runs,
+  one only runs when an OpenRouter key is configured), and merging them
+  would mean restructuring code, not just relocating it.
+
+Also added, per explicit user decisions made while scoping this
+restructure: `docker-compose.yml` at the repo root (Postgres/Redis/
+MinIO, matching the existing per-workspace `.env.example` values) and
+[docs/api.md](../docs/api.md) (a dedicated per-endpoint API reference).
+The two per-workspace `.env.example` files and the existing
+`architecture/`/`phases/` documentation structure were kept as-is
+rather than consolidated, since CLAUDE.md's own rules reference them by
+name.
+
+Verified after the restructure: `bunx tsc --noEmit` clean on both
+`src` and `tests`, 125/125 `bun test` passing, and a live `bun run
+start` / `bun run worker` / `GET /health` / login smoke test all
+succeeded unchanged.

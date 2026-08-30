@@ -1,7 +1,7 @@
 import { buildRoutes } from "./app.ts";
 import { config } from "./config/env.ts";
-import { verifyDatabaseConnection } from "./database/client.ts";
-import { logger } from "./shared/logger.ts";
+import { verifyDatabaseConnection } from "./infrastructure/database/client.ts";
+import { logger } from "./shared/utils/logger.ts";
 
 async function bootstrap(): Promise<void> {
   await verifyDatabaseConnection();

@@ -460,3 +460,35 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   (LiveKit) evaluated and deliberately deferred with documented
   reasoning. 125/125 `bun test` passing, `bunx tsc --noEmit` clean on
   both workspaces. Backend implementation for this assignment is done.
+- 2026-08-30 — Requested folder restructure of `apps/backend/src` to a
+  specific target tree, with an explicit "keep all the code the same,
+  folder structure only" constraint. Asked 3 clarifying questions first
+  (whether `modules/` wraps every domain module uniformly; whether to
+  squash `architecture/`+`phases/` into single `docs/` files or just add
+  `docs/api.md` alongside them; single root `.env.example` vs. the two
+  workspace-level ones) since the tree was internally ambiguous
+  (inconsistent indentation) and getting it wrong meant redoing ~90
+  file moves. Went with: all modules under `modules/` uniformly, keep
+  `architecture/`+`phases/` as-is and add `docs/api.md`, keep both
+  `.env.example` files and add `docker-compose.yml`.
+- 2026-08-30 — Moved every `src/` file into the new tree via `git mv`
+  (preserving history), split `queue/` into `queues/` (one file per
+  queue, sharing a connection/options from `queue.service.ts` so
+  behavior didn't change) plus `infrastructure/redis/`, split
+  `shared/http/` into `middleware/` + `shared/errors/` + `shared/types/`,
+  split resume-related files out of `candidates/` into their own
+  `resumes/` module, moved all `*.test.ts` files into a top-level
+  `tests/` tree mirroring `src/modules/`, and fixed every import path
+  by hand across ~75 source and test files. Deliberately skipped adding
+  barrel `index.ts` files (would be new re-export code, not a pure
+  move) and kept `ranking/`'s two files separate rather than merging
+  into one `ranking.service.ts` (they're independent units) — both
+  documented in
+  [phases/14-reliability-testing-and-cleanup.md](phases/14-reliability-testing-and-cleanup.md)'s
+  addendum.
+- 2026-08-30 — Updated `tsconfig.json` to include the new `tests/`
+  directory, and updated `README.md`, `architecture/principles.md`,
+  and the phase 14 addendum to describe the new layout instead of the
+  old one. Re-verified after the restructure: `bunx tsc --noEmit`
+  clean, 125/125 `bun test` passing, and a live `bun run start`/`bun
+  run worker`/login smoke test all succeeded unchanged.

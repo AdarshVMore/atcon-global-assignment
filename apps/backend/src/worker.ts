@@ -1,7 +1,7 @@
-import { logger } from "./shared/logger.ts";
-import { startApplicationRankWorker } from "./workers/applicationRank.worker.ts";
-import { startNotificationSendWorker } from "./workers/notificationSend.worker.ts";
-import { startResumeParseWorker } from "./workers/resumeParse.worker.ts";
+import { logger } from "./shared/utils/logger.ts";
+import { startApplicationRankWorker } from "./workers/application-ranking.worker.ts";
+import { startNotificationSendWorker } from "./workers/notification.worker.ts";
+import { startResumeParseWorker } from "./workers/resume-parser.worker.ts";
 
 const workers = [startResumeParseWorker(), startApplicationRankWorker(), startNotificationSendWorker()];
 

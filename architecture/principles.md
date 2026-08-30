@@ -73,14 +73,23 @@ README.md
 The exact structure can evolve if a simpler one is clearer. Do not create
 packages merely for the sake of having a monorepo.
 
-**Implementation note:** the actual `apps/backend/src` layout ended up
-as `auth/`, `candidates/` (includes resume upload/parsing — no separate
-`resume-processing/` module), `jobs/`, `applications/`, `interviews/`,
-`notifications/`, `dashboard/`, `ranking/`, `queue/` (queue/worker
-infrastructure), `workers/` (the actual job processors), `shared/`,
-`config/`, `database/`. No `packages/shared` was created — with only
-one app (`apps/backend`) consuming it, there's nothing to share yet;
-see [phases/00-repository-and-architecture-foundation.md](../phases/00-repository-and-architecture-foundation.md).
+**Implementation note:** the actual `apps/backend/src` layout is
+`modules/{auth,candidates,resumes,jobs,applications,interviews,
+notifications,ranking,dashboard,health}/` for domain logic, plus
+`workers/` (job processors), `queues/` (queue definitions and the
+worker-creation service), `infrastructure/` (database, redis, storage,
+llm clients), `middleware/` (cross-cutting HTTP concerns), `shared/`
+(`errors/`, `types/`, `utils/`), and `config/`. Tests live in a
+top-level `tests/` directory mirroring `src/modules/`, rather than
+colocated with source files. `resumes/` is a module on its own,
+separate from `candidates/` — resume upload, storage, text extraction,
+and LLM extraction all live there. See
+[phases/14-reliability-testing-and-cleanup.md](../phases/14-reliability-testing-and-cleanup.md)
+for the earlier, flatter layout this was reorganized from, and
+[README.md](../README.md#monorepo-layout) for the current full tree.
+No `packages/shared` was created — with only one app (`apps/backend`)
+consuming it, there's nothing to share yet; see
+[phases/00-repository-and-architecture-foundation.md](../phases/00-repository-and-architecture-foundation.md).
 
 ## Data Ownership
 

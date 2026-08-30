@@ -105,29 +105,43 @@ production scale, but the shape doesn't fight it either:
 apps/
   backend/
     src/
-      auth/            candidates/       jobs/
-      applications/     interviews/       notifications/
-      dashboard/         ranking/          queue/
-      workers/            shared/           config/
-      database/            server.ts          worker.ts
+      modules/
+        auth/  candidates/  resumes/  jobs/  applications/
+        interviews/  notifications/  ranking/  dashboard/  health/
+      workers/            # job processors (resume-parser, application-ranking, notification)
+      queues/             # queue definitions + the worker-creation service
+      infrastructure/     # database, redis, storage, llm clients
+      middleware/         # cross-cutting HTTP middleware (error handling)
+      shared/             # errors/, types/, utils/ shared across modules
+      config/
+      app.ts  server.ts  worker.ts
+    tests/                # mirrors src/modules structure
 packages/
   database/       # Prisma schema, migrations, seed, generated client
 architecture/     # design docs
+docs/             # API reference
 phases/           # implementation checklist and per-phase notes
 progress.md       # running log of completed work
 ```
 
-Each domain module under `apps/backend/src/` follows the same shape:
-`*.repository.ts` (Prisma queries), `*.service.ts` (business logic,
-authorization, validation), `*.controller.ts` (HTTP request/response),
-plus `dto.ts`/`validation.ts` for request bodies. Async work lives in
-`queue/` (queue/worker infrastructure) and `workers/` (the actual job
-processors).
+Each domain module under `apps/backend/src/modules/` follows the same
+shape: `*.repository.ts` (Prisma queries), `*.service.ts` (business
+logic, authorization, validation), `*.controller.ts` (HTTP request/
+response), plus `dto.ts`/`validation.ts` for request bodies.
+`resumes/` is its own module, separate from `candidates/` — resume
+upload, storage, text extraction, and LLM-backed structured extraction
+all live there; a candidate's core profile (phone, etc.) stays in
+`candidates/`. `ranking/` holds two independent units
+(`deterministicScore.ts`, `candidateJobMatcher.ts`) rather than one
+merged `ranking.service.ts`, since they're used independently (the
+deterministic score always runs; the LLM matcher only when
+`OPENROUTER_API_KEY` is set).
 
 ## Local Setup
 
 Requires Bun, PostgreSQL, Redis, and an S3-compatible object store
-(MinIO for local dev) running locally.
+(MinIO for local dev) running locally. `docker-compose.yml` at the repo
+root starts all three:
 
 ```bash
 bun install
@@ -135,16 +149,20 @@ cp apps/backend/.env.example apps/backend/.env
 cp packages/database/.env.example packages/database/.env
 # fill in DATABASE_URL, REDIS_URL, JWT_SECRET, OPENROUTER_API_KEY, etc.
 
-# MinIO for local resume storage (S3-compatible)
-docker run -d --name atcon-minio -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-  minio/minio server /data --console-address ":9001"
+docker compose up -d          # Postgres, Redis, MinIO
+
+# MinIO needs its bucket created once (the `mc` CLI, or the console at
+# http://localhost:9001, user/pass minioadmin/minioadmin):
 mc alias set local http://localhost:9000 minioadmin minioadmin
 mc mb local/ats-resumes
 ```
 
-The `S3_*` variables in `apps/backend/.env.example` already match these
-default MinIO credentials and bucket name.
+The `S3_*` variables in `apps/backend/.env.example` already match
+`docker-compose.yml`'s default MinIO credentials and bucket name, and
+its Postgres/Redis services match `DATABASE_URL`/`REDIS_URL` too. If
+you'd rather run Postgres/Redis/MinIO some other way (already-installed
+services, a managed instance, etc.), `docker-compose.yml` is optional —
+just point the env vars at whatever you're running.
 
 ## Running
 
@@ -335,6 +353,8 @@ Documented in more detail in each phase's own file under
 - [architecture/README.md](architecture/README.md) — architecture,
   domain model, state machine, auth, resume processing, ranking,
   background jobs, API design, dashboard.
+- [docs/api.md](docs/api.md) — full per-endpoint API reference (request/
+  response shapes, status codes).
 - [phases/README.md](phases/README.md) — implementation checklist and
   phase-by-phase status, including an Architecture Note in most phase
   files explaining any non-obvious decision made in that phase.
