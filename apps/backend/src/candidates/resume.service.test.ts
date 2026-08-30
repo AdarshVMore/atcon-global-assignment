@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ResumeStatus, type Resume } from "@atcon/database";
+import { Prisma, ResumeStatus, type Resume } from "@atcon/database";
 import type { Queue } from "bullmq";
 import { ResumeService } from "./resume.service.ts";
 import type { CandidateRepository, CandidateWithUser } from "./candidate.repository.ts";
@@ -107,6 +107,29 @@ describe("ResumeService.uploadResume", () => {
     await expect(
       service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
     ).rejects.toThrow("db is down");
+    expect(deletedKey).toBe("resumes/candidate-1/resume.pdf");
+  });
+
+  test("maps a race-condition duplicate (DB constraint, not the pre-check) to a conflict", async () => {
+    let deletedKey: string | undefined;
+    const service = new ResumeService(
+      fakeResumeRepository({
+        create: async () => {
+          throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+            code: "P2002",
+            clientVersion: "7.10.0",
+            meta: { driverAdapterError: { cause: { constraint: { index: "Resume_candidateId_fileHash_key" } } } },
+          });
+        },
+      }),
+      fakeCandidateRepository(),
+      fakeStorage({ delete: async (key: string) => { deletedKey = key; } }),
+      fakeQueue(),
+    );
+
+    await expect(
+      service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
+    ).rejects.toThrow("You have already uploaded this exact resume file");
     expect(deletedKey).toBe("resumes/candidate-1/resume.pdf");
   });
 

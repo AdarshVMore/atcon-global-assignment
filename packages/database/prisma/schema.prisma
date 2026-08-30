@@ -173,7 +173,7 @@ model Resume {
 
   applications Application[]
 
-  @@index([candidateId])
+  @@unique([candidateId, fileHash])
   @@index([fileHash])
 }
 

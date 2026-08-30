@@ -378,3 +378,41 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   from Applied to Hired to watch `timeToHireDays` go from `null` to a
   real number and `pipelineHealth.terminalApplications` increment.
   124/124 `bun test` passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 14 — Kicked off `/code-review` (high effort) for a
+  fresh-eyes pass across the whole branch diff; all 8 finder sub-agents
+  hit a session rate limit and failed before reporting anything back.
+  Did the review manually instead rather than re-spawning into the same
+  limit.
+- 2026-08-30 — Phase 14 — Found and fixed a real gap during the manual
+  review: `Resume`'s duplicate-file check (`candidateId` + `fileHash`)
+  had no database constraint backing it, unlike every other duplicate
+  check in this codebase. Added `@@unique([candidateId, fileHash])`
+  (migration `20260830064353_add_resume_candidate_hash_unique`,
+  checked for existing duplicates first — none), dropped the now-
+  redundant standalone `candidateId` index, and added the same
+  pre-check-plus-DB-constraint-fallback pattern used everywhere else to
+  `ResumeService.uploadResume`. Verified live.
+- 2026-08-30 — Phase 14 — Investigated a `pg` deprecation warning
+  ("client.query() when the client is already executing a query") seen
+  in the worker's startup logs. Confirmed `@prisma/adapter-pg` uses a
+  real connection pool, not a shared client; deliberately reproducing
+  concurrent load against Prisma directly did not reproduce it, and the
+  triggering query still completed correctly. Documented as a known,
+  non-blocking startup-timing quirk in the README rather than chased
+  further.
+- 2026-08-30 — Phase 14 — Rewrote the README from a bare setup guide
+  into full documentation: complete API route table, tradeoffs,
+  assumptions, known limitations, and future improvements. Added
+  "Implementation Note" sections to eight architecture docs
+  (`state-machine.md`, `data-model.md`, `resume-processing.md`,
+  `ranking.md`, `dashboard.md`, `background-jobs.md`, `api-design.md`,
+  `principles.md`) recording where the actual build made a judgment
+  call the original doc left open.
+- 2026-08-30 — Phase 14 — Systematic manual review (auth boundaries,
+  authorization boundaries, transaction boundaries, state-machine
+  bypass routes, dead code, unclear names, logging consistency, error
+  handling) turned up nothing else — the codebase was already fairly
+  disciplined about these from building it phase-by-phase with live
+  verification each time. 125/125 `bun test` passing, `bunx tsc
+  --noEmit` clean on both workspaces, clean start verified for both the
+  API and worker processes.

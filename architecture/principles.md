@@ -73,6 +73,15 @@ README.md
 The exact structure can evolve if a simpler one is clearer. Do not create
 packages merely for the sake of having a monorepo.
 
+**Implementation note:** the actual `apps/backend/src` layout ended up
+as `auth/`, `candidates/` (includes resume upload/parsing — no separate
+`resume-processing/` module), `jobs/`, `applications/`, `interviews/`,
+`notifications/`, `dashboard/`, `ranking/`, `queue/` (queue/worker
+infrastructure), `workers/` (the actual job processors), `shared/`,
+`config/`, `database/`. No `packages/shared` was created — with only
+one app (`apps/backend`) consuming it, there's nothing to share yet;
+see [phases/00-repository-and-architecture-foundation.md](../phases/00-repository-and-architecture-foundation.md).
+
 ## Data Ownership
 
 - **PostgreSQL owns:** User, Candidate, Job, Application, Pipeline State,

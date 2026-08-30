@@ -3,6 +3,7 @@ import type { Queue } from "bullmq";
 import type { ResumeParseJobData } from "../queue/jobs.ts";
 import { ConflictError, NotFoundError } from "../shared/http/HttpError.ts";
 import { logger } from "../shared/logger.ts";
+import { isUniqueConstraintViolation } from "../shared/prismaErrors.ts";
 import type { ResumeStorage } from "../shared/storage/resumeStorage.ts";
 import { CandidateRepository } from "./candidate.repository.ts";
 import { ResumeRepository } from "./resume.repository.ts";
@@ -44,6 +45,9 @@ export class ResumeService {
       });
     } catch (error) {
       await this.resumeStorage.delete(key).catch(() => {});
+      if (isUniqueConstraintViolation(error, "fileHash")) {
+        throw new ConflictError("You have already uploaded this exact resume file");
+      }
       throw error;
     }
 

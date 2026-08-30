@@ -40,3 +40,13 @@ GET    /jobs/:jobId/pipeline
 
 Exact routes can evolve as implementation details become clearer. See
 [dashboard.md](dashboard.md) for the analytics endpoints.
+
+**Implementation note (Phase 5):** candidate self-service routes ended
+up as `GET/PATCH /candidates/me` and `GET/POST /candidates/me/resumes`
+rather than `/candidates/:candidateId`, mirroring `GET /me` from
+Phase 3. Nothing hands a candidate their own `candidateId` to put in a
+URL (`register`/`login` only return the `User`), so `:candidateId`
+would have needed an ID-discovery step that doesn't otherwise exist.
+See [phases/05-candidate-and-resume-management.md](../phases/05-candidate-and-resume-management.md)
+for the full reasoning, and the root [README.md](../README.md)'s API
+Overview for the complete, current route list.

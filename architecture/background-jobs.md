@@ -57,6 +57,30 @@ Application → Interview → Scorecard
 
 See [data-model.md](data-model.md) for the Interview/Scorecard shape.
 
+## Implementation Notes (Phases 8–12)
+
+**BullMQ**, not a hand-rolled queue on raw Redis. Retry/backoff/
+dead-letter semantics are easy to get subtly wrong, and this is
+precisely the reliability concern this document calls out — a
+well-tested queue library gets that correctness for free. It requires
+`ioredis` as a direct dependency; the general "prefer `Bun.redis`"
+guidance elsewhere in this project is about simple direct key-value
+operations, not a queue library with its own driver requirement.
+
+**`resume.parse`** is enqueued from the upload endpoint itself (Phase
+5/8). **`application.rank`** is enqueued from `ApplicationService`
+after an application commits (Phase 10). **`notification.send`**
+carries the notification's actual content (`{userId, type, title,
+message}`), not a reference to an already-persisted row — unlike the
+other two jobs, the `Notification` row doesn't exist until the worker
+creates it, since a notification is pure side effect of an event that
+already committed on its own (Phase 12).
+
+**Email** is a real `EmailSender` interface with one implementation,
+`ConsoleEmailSender`, which logs instead of sending — no SMTP/email
+provider is configured for this project. Swapping in a real provider
+means implementing that interface; no caller changes.
+
 ## LiveKit (Optional)
 
 LiveKit is optional and not part of the core architecture. Implement it

@@ -52,6 +52,11 @@ The system supports two primary roles: **Candidate** and **Recruiter**.
 Authorization happens in the backend — the frontend is never treated as a
 security boundary. See [auth.md](auth.md).
 
+**Implementation note (Phase 1):** there is no separate `Recruiter`
+table. `User.role` plus `Job.recruiterId -> User.id` is sufficient —
+a 1:1 join table would carry no fields of its own and add an
+unnecessary join everywhere a job's owner is needed.
+
 ## Job Model
 
 A Job represents a published or draft recruitment opening and owns its
