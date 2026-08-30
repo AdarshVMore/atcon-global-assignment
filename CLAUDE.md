@@ -65,18 +65,27 @@ Use simple constructor-based dependency injection — no DI framework.
 
 ## Commands
 
-Run from `apps/backend` once the workspace is scaffolded (Phase 0):
+`bun install` can be run from the repo root (installs all workspaces).
+Everything else is scoped to a workspace:
+
+From `apps/backend`:
 
 ```
-bun install          # install dependencies
 bun run dev           # start backend with hot reload
 bun test              # run test suite
 bunx tsc --noEmit     # TypeScript check
-bunx prisma migrate dev   # run migrations (packages/database)
 ```
 
-Exact script names should be finalized during Phase 0 and kept in sync with
-`apps/backend/package.json`. Update this section if scripts change.
+From `packages/database`:
+
+```
+bunx prisma migrate dev   # create/apply a migration
+bunx prisma generate      # regenerate the Prisma client
+bunx prisma db seed       # run prisma/seed.ts
+bunx tsc --noEmit          # TypeScript check
+```
+
+Update this section if scripts change.
 
 ---
 

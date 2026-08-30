@@ -13,7 +13,7 @@ code exists — it must be implemented and verified. See the
 | Phase | File | Goal | Status |
 |---|---|---|---|
 | 0 | [00-repository-and-architecture-foundation.md](00-repository-and-architecture-foundation.md) | Understand the assignment, establish the backend monorepo foundation | [x] Complete |
-| 1 | [01-postgresql-and-prisma.md](01-postgresql-and-prisma.md) | Database foundation and core domain schema | [ ] Not started |
+| 1 | [01-postgresql-and-prisma.md](01-postgresql-and-prisma.md) | Database foundation and core domain schema | [x] Complete |
 | 2 | [02-backend-foundation.md](02-backend-foundation.md) | Basic class-oriented backend structure | [ ] Not started |
 | 3 | [03-authentication-and-rbac.md](03-authentication-and-rbac.md) | Authentication and Candidate/Recruiter authorization | [ ] Not started |
 | 4 | [04-job-management.md](04-job-management.md) | Recruiter job creation and configurable stages | [ ] Not started |

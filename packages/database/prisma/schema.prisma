@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CANDIDATE
+  RECRUITER
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum ResumeStatus {
+  UPLOADED
+  PROCESSING
+  PARSED
+  FAILED
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum ScorecardRecommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+enum NotificationType {
+  APPLICATION_RECEIVED
+  APPLICATION_STAGE_CHANGED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_RESCHEDULED
+  INTERVIEW_CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  candidate Candidate?
+
+  jobsPosted           Job[]                     @relation("JobRecruiter")
+  interviewsConducted  Interview[]               @relation("InterviewInterviewer")
+  scorecardsSubmitted  InterviewScorecard[]       @relation("ScorecardSubmittedBy")
+  stageChangesMade     ApplicationStageHistory[]  @relation("StageChangedBy")
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+
+  @@index([role])
+}
+
+model Candidate {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resumes      Resume[]
+  applications Application[]
+}
+
+model Job {
+  id           String    @id @default(uuid())
+  recruiterId  String
+  recruiter    User      @relation("JobRecruiter", fields: [recruiterId], references: [id], onDelete: Restrict)
+  title        String
+  description  String
+  requirements String
+  status       JobStatus @default(DRAFT)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  stages       JobStage[]
+  applications Application[]
+
+  @@index([recruiterId])
+  @@index([status])
+}
+
+model JobStage {
+  id         String   @id @default(uuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name       String
+  order      Int
+  isTerminal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  applications      Application[]             @relation("ApplicationCurrentStage")
+  stageHistoryFrom  ApplicationStageHistory[]  @relation("StageHistoryFrom")
+  stageHistoryTo    ApplicationStageHistory[]  @relation("StageHistoryTo")
+
+  @@unique([jobId, order])
+  @@unique([jobId, name])
+}
+
+model Application {
+  id              String   @id @default(uuid())
+  candidateId     String
+  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobId           String
+  job             Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  currentStageId  String
+  currentStage    JobStage  @relation("ApplicationCurrentStage", fields: [currentStageId], references: [id], onDelete: Restrict)
+  resumeId        String?
+  resume          Resume?   @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  appliedAt       DateTime  @default(now())
+  rankingScore        Float?
+  rankingExplanation  Json?
+  rankedAt            DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  stageHistory ApplicationStageHistory[]
+  interviews   Interview[]
+
+  @@unique([candidateId, jobId])
+  @@index([jobId])
+  @@index([candidateId])
+  @@index([currentStageId])
+}
+
+model ApplicationStageHistory {
+  id             String    @id @default(uuid())
+  applicationId  String
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fromStageId    String?
+  fromStage      JobStage?   @relation("StageHistoryFrom", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStageId      String
+  toStage        JobStage    @relation("StageHistoryTo", fields: [toStageId], references: [id], onDelete: Restrict)
+  changedById    String?
+  changedBy      User?       @relation("StageChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  reason         String?
+  changedAt      DateTime    @default(now())
+
+  @@index([applicationId])
+}
+
+model Resume {
+  id               String       @id @default(uuid())
+  candidateId      String
+  candidate        Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  fileUrl          String
+  originalFileName String
+  mimeType         String
+  fileHash         String
+  status           ResumeStatus @default(UPLOADED)
+  parsedData       Json?
+  parseError       String?
+  uploadedAt       DateTime     @default(now())
+  parsedAt         DateTime?
+
+  applications Application[]
+
+  @@index([candidateId])
+  @@index([fileHash])
+}
+
+model Interview {
+  id               String           @id @default(uuid())
+  applicationId    String
+  application      Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewerId    String?
+  interviewer      User?            @relation("InterviewInterviewer", fields: [interviewerId], references: [id], onDelete: SetNull)
+  scheduledAt      DateTime
+  durationMinutes  Int
+  status           InterviewStatus  @default(SCHEDULED)
+  meetingUrl       String?
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  scorecard InterviewScorecard?
+
+  @@index([applicationId])
+}
+
+model InterviewScorecard {
+  id                     String                  @id @default(uuid())
+  interviewId            String                  @unique
+  interview              Interview               @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  submittedById          String
+  submittedBy            User                    @relation("ScorecardSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  technicalScore         Int
+  communicationScore     Int
+  problemSolvingScore    Int
+  recommendation         ScorecardRecommendation
+  feedback               String?
+  createdAt              DateTime                @default(now())
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String
+  resourceType  String
+  resourceId    String
+  previousState Json?
+  newState      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([resourceType, resourceId])
+}

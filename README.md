@@ -39,17 +39,21 @@ Requires Bun, PostgreSQL, and Redis running locally.
 ```bash
 bun install
 cp apps/backend/.env.example apps/backend/.env
+cp packages/database/.env.example packages/database/.env
 # fill in DATABASE_URL, REDIS_URL, JWT_SECRET, OPENROUTER_API_KEY, etc.
 ```
 
 ## Running
 
 ```bash
-cd apps/backend
-bun run dev            # start backend with hot reload
-bun test                # run test suite
-bunx tsc --noEmit       # TypeScript check
-bunx prisma migrate dev # run migrations (from packages/database, added in Phase 1)
+cd packages/database
+bunx prisma migrate dev   # create/apply a migration
+bunx prisma db seed       # seed a recruiter, candidate, job, and application
+
+cd ../../apps/backend
+bun run dev               # start backend with hot reload
+bun test                  # run test suite
+bunx tsc --noEmit         # TypeScript check
 ```
 
 ## Environment Variables
