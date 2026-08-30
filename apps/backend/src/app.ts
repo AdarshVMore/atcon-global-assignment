@@ -7,6 +7,9 @@ import { AuthService } from "./auth/auth.service.ts";
 import { requireAuth, requireRole } from "./auth/middleware.ts";
 import { UserRepository } from "./auth/user.repository.ts";
 import { CandidateController } from "./candidates/candidate.controller.ts";
+import { DashboardController } from "./dashboard/dashboard.controller.ts";
+import { DashboardRepository } from "./dashboard/dashboard.repository.ts";
+import { DashboardService } from "./dashboard/dashboard.service.ts";
 import { CandidateRepository } from "./candidates/candidate.repository.ts";
 import { CandidateService } from "./candidates/candidate.service.ts";
 import { ResumeController } from "./candidates/resume.controller.ts";
@@ -71,6 +74,10 @@ export function buildRoutes() {
     notificationService,
   );
   const interviewController = new InterviewController(interviewService);
+
+  const dashboardRepository = new DashboardRepository();
+  const dashboardService = new DashboardService(dashboardRepository, jobRepository);
+  const dashboardController = new DashboardController(dashboardService);
 
   return {
     "/health": {
@@ -153,6 +160,12 @@ export function buildRoutes() {
     },
     "/notifications/:notificationId/read": {
       PATCH: withErrorHandling(requireAuth(notificationController.markAsRead)),
+    },
+    "/dashboard/overview": {
+      GET: withErrorHandling(requireRole([Role.RECRUITER], dashboardController.overview)),
+    },
+    "/jobs/:jobId/pipeline": {
+      GET: withErrorHandling(requireRole([Role.RECRUITER], dashboardController.jobPipeline)),
     },
   };
 }

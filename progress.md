@@ -354,3 +354,27 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   `ConsoleEmailSender`; a recruiter is blocked (403) from marking a
   candidate's notification read, the candidate can (200). 120/120
   `bun test` passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 13 — Built `GET /dashboard/overview` and `GET
+  /jobs/:jobId/pipeline`, both recruiter-only and scoped to the
+  requesting recruiter's own jobs — there's no admin/platform role in
+  this system, so "the dashboard" can only sensibly mean "my pipeline,"
+  never a cross-recruiter view.
+- 2026-08-30 — Phase 13 — Time-to-hire matches on a stage *named*
+  "Hired" (case-insensitive), not a schema flag — `JobStage.isTerminal`
+  deliberately doesn't distinguish success from failure terminal
+  stages (a Phase 7 call), so there's no structural way to know which
+  terminal stage means a hire. Works because every job so far uses
+  Phase 4's default naming; documented as a real limitation (a
+  recruiter who renames that stage breaks the metric) rather than
+  glossed over. "Stale" applications use a fixed 14-day threshold on
+  `Application.updatedAt`, which already gets bumped by every stage
+  move.
+- 2026-08-30 — Phase 13 — Skipped "add useful filtering if time
+  allows" — it's explicitly optional in its own task wording, and
+  nothing else in the phase depended on it.
+- 2026-08-30 — Phase 13 — Verified live against real dev-database data:
+  stage counts matched known seeded applications (including zero-count
+  stages showing up correctly), and pushed one application all the way
+  from Applied to Hired to watch `timeToHireDays` go from `null` to a
+  real number and `pipelineHealth.terminalApplications` increment.
+  124/124 `bun test` passing, `bunx tsc --noEmit` clean.
