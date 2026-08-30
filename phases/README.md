@@ -16,7 +16,7 @@ code exists — it must be implemented and verified. See the
 | 1 | [01-postgresql-and-prisma.md](01-postgresql-and-prisma.md) | Database foundation and core domain schema | [x] Complete |
 | 2 | [02-backend-foundation.md](02-backend-foundation.md) | Basic class-oriented backend structure | [x] Complete |
 | 3 | [03-authentication-and-rbac.md](03-authentication-and-rbac.md) | Authentication and Candidate/Recruiter authorization | [x] Complete |
-| 4 | [04-job-management.md](04-job-management.md) | Recruiter job creation and configurable stages | [ ] Not started |
+| 4 | [04-job-management.md](04-job-management.md) | Recruiter job creation and configurable stages | [x] Complete |
 | 5 | [05-candidate-and-resume-management.md](05-candidate-and-resume-management.md) | Candidate profiles and resume uploads | [ ] Not started |
 | 6 | [06-applications.md](06-applications.md) | Candidates apply, recruiters manage applications | [ ] Not started |
 | 7 | [07-application-pipeline-state-machine.md](07-application-pipeline-state-machine.md) | Configurable hiring-stage transitions | [ ] Not started |

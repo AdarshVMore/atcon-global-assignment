@@ -86,3 +86,25 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   malformed JSON body → 400; `/me` with a valid token → 200 own profile;
   `/me` without a token → 401. 19/19 `bun test` passing,
   `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 4 — Built job management end to end: `POST /jobs`
+  (default 6-stage pipeline or a custom one), `PATCH /jobs/:jobId`,
+  `POST /jobs/:jobId/publish`, `POST /jobs/:jobId/close`, `GET /jobs`,
+  `GET /jobs/:jobId`, `POST /jobs/:jobId/stages`, `PATCH
+  /jobs/:jobId/stages/:stageId`. `JobRepository` → `JobService` →
+  `JobController`, same layering as auth.
+- 2026-08-30 — Phase 4 — Decided against a hard-delete endpoint for
+  jobs — `Application.jobId` cascades on delete, so deleting a job would
+  silently wipe out candidate applications. "Archive" is a status
+  transition to `CLOSED` instead. Also skipped a stage
+  reorder/delete endpoint — not in the task list, and deleting a stage
+  an application might reference is exactly what the schema's
+  `onDelete: Restrict` is meant to prevent.
+- 2026-08-30 — Phase 4 — Job visibility rule: every route requires
+  authentication (no public browsing), and a non-owning viewer gets 404
+  rather than 403 for a non-published job, so recruiters can't probe for
+  the existence of each other's drafts.
+- 2026-08-30 — Phase 4 — Verified live end to end: candidate blocked
+  from `POST /jobs` (403), recruiter creates a job with default stages,
+  candidate gets 404 on the draft, candidate's `GET /jobs` excludes it,
+  recruiter publishes it, candidate then sees it (200). 30/30 `bun test`
+  passing, `bunx tsc --noEmit` clean.
