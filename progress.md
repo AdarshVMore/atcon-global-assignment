@@ -47,3 +47,14 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
 - 2026-08-30 — Phase 1 — Corrected `CLAUDE.md`'s Commands section and
   the root README: Prisma commands run from `packages/database`, not
   `apps/backend`.
+- 2026-08-30 — Phase 2 — Built the class-oriented backend skeleton:
+  `config/env.ts` (fails fast on missing `DATABASE_URL`/`JWT_SECRET`),
+  `database/client.ts`, `shared/logger.ts`, `shared/http/HttpError.ts` +
+  `withErrorHandling()`, `auth/types.ts` (types only — Phase 3 owns the
+  actual auth logic), and a `Controller → Service` health check wired
+  through `app.ts` and `server.ts`. No repository layer yet — nothing
+  has real persistence logic to encapsulate until Phase 3/4.
+- 2026-08-30 — Phase 2 — Added `bun test` coverage for the error wrapper
+  and health controller (mocked service, no live DB needed); verified
+  `bunx tsc --noEmit` (exit 0) and a real `bun run start` →
+  `GET /health` → `200 {"status":"ok"}` with the database check logged.
