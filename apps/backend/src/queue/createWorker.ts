@@ -1,4 +1,4 @@
-import { Worker, type Job, type Processor } from "bullmq";
+import { UnrecoverableError, Worker, type Job, type Processor } from "bullmq";
 import { logger } from "../shared/logger.ts";
 import { createRedisConnection } from "./redisConnection.ts";
 
@@ -28,7 +28,8 @@ export function createWorker<DataType, ResultType = void>(
   });
 
   worker.on("failed", (job, error) => {
-    const isFinalAttempt = !job || job.attemptsMade >= (job.opts.attempts ?? 1);
+    const isFinalAttempt =
+      !job || job.attemptsMade >= (job.opts.attempts ?? 1) || error instanceof UnrecoverableError;
     logger.error("Job attempt failed", {
       queue: queueName,
       jobId: job?.id,

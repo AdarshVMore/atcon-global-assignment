@@ -222,3 +222,48 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   returned immediately with status `UPLOADED`, and the worker process
   independently moved it to `PARSED` in Postgres shortly after. 65/65
   `bun test` passing, `bunx tsc --noEmit` clean.
+- 2026-08-30 — Phase 9 — Asked whether to wait for a real OpenRouter
+  API key before building resume parsing; told to proceed without one.
+  Built the full integration (real `openai` SDK pointed at OpenRouter's
+  OpenAI-compatible endpoint — no separate "OpenRouter SDK" package
+  exists; the one OpenRouter-branded npm package is a Vercel `ai` SDK
+  provider, much heavier than needed for one JSON completion call) and
+  tested everything mockable. The live network call itself is the one
+  thing not verified here — documented plainly in the phase file rather
+  than glossed over.
+- 2026-08-30 — Phase 9 — Real text extraction: `pdf-parse` for PDF,
+  `mammoth` for DOCX. Legacy `.doc` is explicitly unsupported (mammoth
+  doesn't handle it, and a proper legacy-binary parser is too heavy a
+  dependency for a format candidates rarely use) — uploads still
+  succeed, only parsing fails, cleanly.
+- 2026-08-30 — Phase 9 — Built real fixtures instead of mocking text
+  extraction: a hand-crafted minimal valid PDF (worked first try
+  against `pdf-parse`/pdf.js's lenient parser) and a docx built via
+  Python's `zipfile` module (`[Content_Types].xml` + `_rels/.rels` +
+  `word/document.xml`) since no docx-generation library was already in
+  the project. Both actually parse for real in tests, not mocked.
+- 2026-08-30 — Phase 9 — No API key configured → resume still ends up
+  `PARSED` with `parsedData.structured: null`, not `FAILED` — text
+  extraction genuinely succeeded and is useful on its own (Phase 10's
+  ranking can fall back to deterministic matching). Once an LLM call is
+  actually attempted, though, its failure fails the whole job rather
+  than trying to preserve the already-extracted text across retries —
+  a deliberate scope simplification, documented as such.
+- 2026-08-30 — Phase 9 — Extended `createWorker` to recognize BullMQ's
+  `UnrecoverableError` so a permanently-unparseable format (legacy
+  `.doc`) fails immediately instead of burning through 5 retries for a
+  guaranteed-repeat failure.
+- 2026-08-30 — Phase 9 — Caught a real bug via the test I wrote for the
+  above: the existing "is this the final attempt" check only compared
+  `job.attemptsMade` against the configured `attempts`, which is never
+  true for an `UnrecoverableError` (it stops after attempt 1
+  regardless) — so `onFinalFailure` would never have fired, and an
+  unsupported-format resume would have stayed `PROCESSING` forever.
+  Fixed by also checking `error instanceof UnrecoverableError`, proven
+  by the failing test turning green.
+- 2026-08-30 — Phase 9 — Verified live, twice: a real PDF through the
+  full pipeline with no LLM key configured (`PARSED`, real extracted
+  text, `structured: null`); a legacy `.doc` upload (`FAILED`
+  immediately, one attempt, clear `parseError`, file and DB row
+  untouched otherwise). 82/82 `bun test` passing, `bunx tsc --noEmit`
+  clean.

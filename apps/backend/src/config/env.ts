@@ -10,6 +10,9 @@ export interface AppConfig {
   s3Bucket: string;
   s3AccessKeyId: string;
   s3SecretAccessKey: string;
+  /** Empty when unset — LLM-dependent features degrade gracefully rather than requiring it at startup. */
+  openRouterApiKey: string;
+  openRouterModel: string;
 }
 
 function requireEnv(name: string): string {
@@ -32,4 +35,6 @@ export const config: AppConfig = {
   s3Bucket: requireEnv("S3_BUCKET"),
   s3AccessKeyId: requireEnv("S3_ACCESS_KEY_ID"),
   s3SecretAccessKey: requireEnv("S3_SECRET_ACCESS_KEY"),
+  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
+  openRouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
 };

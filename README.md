@@ -79,6 +79,12 @@ list: server port, PostgreSQL connection string, Redis connection string,
 JWT signing secret, OpenRouter API key/model, and S3-compatible object
 storage credentials for resume files.
 
+`OPENROUTER_API_KEY` is optional. Without it, resume parsing still runs
+(text is extracted from the PDF/DOCX and stored) but skips the LLM step
+that produces structured candidate fields — the resume ends up `PARSED`
+either way, just without `parsedData.structured`. Add a key to get full
+structured extraction.
+
 ## Further Documentation
 
 - [architecture/README.md](architecture/README.md) — architecture,

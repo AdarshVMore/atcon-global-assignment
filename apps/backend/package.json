@@ -14,7 +14,10 @@
     "@atcon/database": "workspace:*",
     "bullmq": "^6.3.2",
     "ioredis": "^6.0.0",
-    "jose": "^6.2.10"
+    "jose": "^6.2.10",
+    "mammoth": "^1.12.2",
+    "openai": "^7.8.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@types/bun": "latest"

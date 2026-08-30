@@ -26,4 +26,9 @@ export class ResumeStorage {
   async delete(key: string): Promise<void> {
     await bucket.unlink(key);
   }
+
+  async download(key: string): Promise<Uint8Array> {
+    const bytes = await bucket.file(key).arrayBuffer();
+    return new Uint8Array(bytes);
+  }
 }

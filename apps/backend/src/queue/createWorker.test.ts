@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { Queue, type Job } from "bullmq";
+import { Queue, UnrecoverableError, type Job } from "bullmq";
 import { createWorker } from "./createWorker.ts";
 import { createRedisConnection } from "./redisConnection.ts";
 
@@ -82,5 +82,28 @@ describe("createWorker against a real Redis connection", () => {
 
     expect(attempts).toBe(3);
     expect(finalFailureCalls).toBe(1);
+  }, 10_000);
+
+  test("treats an UnrecoverableError as final on the very first attempt, without retrying", async () => {
+    const queueName = uniqueQueueName("unrecoverable");
+    queue = new Queue<TestJobData>(queueName, { connection: createRedisConnection() });
+
+    let attempts = 0;
+    const final = Promise.withResolvers<void>();
+
+    worker = createWorker<TestJobData>(
+      queueName,
+      async () => {
+        attempts += 1;
+        throw new UnrecoverableError("This will never succeed, don't retry it");
+      },
+      { onFinalFailure: () => final.resolve() },
+    );
+
+    await queue.add("test-job", {}, { attempts: 5, backoff: { type: "fixed", delay: 50 } });
+
+    await final.promise;
+
+    expect(attempts).toBe(1);
   }, 10_000);
 });

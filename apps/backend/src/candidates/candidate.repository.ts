@@ -3,6 +3,10 @@ import { prisma, type Candidate, type User } from "@atcon/database";
 export type CandidateWithUser = Candidate & { user: User };
 
 export class CandidateRepository {
+  findById(id: string): Promise<Candidate | null> {
+    return prisma.candidate.findUnique({ where: { id } });
+  }
+
   findByUserId(userId: string): Promise<CandidateWithUser | null> {
     return prisma.candidate.findUnique({ where: { userId }, include: { user: true } });
   }
