@@ -17,6 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { UserMenu } from "@/components/layout/user-menu";
+import { NotificationsMenu } from "@/components/layout/notifications-menu";
 import type { NavItem } from "@/lib/navigation";
 
 interface AppSidebarProps {
@@ -49,6 +50,7 @@ export function AppSidebar({ nav, homeHref, settingsHref }: AppSidebarProps) {
               </span>
               <span className="truncate text-base font-semibold tracking-tight">ATCON</span>
             </SidebarMenuButton>
+            <NotificationsMenu />
             <SidebarTrigger className="hidden md:flex" />
           </SidebarMenuItem>
         </SidebarMenu>
