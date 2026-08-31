@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useApplications } from "@/features/applications/useApplications";
+import { ApplicationInterviewsPanel } from "@/components/interviews/application-interviews-panel";
 import { ApiError } from "@/lib/api/error";
 import type { Application } from "@/types/applications";
 
@@ -64,7 +65,7 @@ export default function RecruiterCandidatesPage() {
       )}
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Candidate {selected?.candidateId.slice(0, 8)}</DialogTitle>
             <DialogDescription>{selected?.job.title}</DialogDescription>
@@ -90,6 +91,10 @@ export default function RecruiterCandidatesPage() {
                     </li>
                   ))}
                 </ul>
+              </div>
+              <div>
+                <p className="mb-2 font-medium">Interviews</p>
+                <ApplicationInterviewsPanel applicationId={selected.id} />
               </div>
             </div>
           )}
