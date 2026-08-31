@@ -118,15 +118,65 @@ phases need them to already exist in the tree.
 
 # Phase 2 — Application Shell
 
-- [ ] Create authenticated application shell.
-- [ ] Create recruiter layout.
-- [ ] Create candidate layout.
-- [ ] Create desktop sidebar.
-- [ ] Create mobile navigation.
-- [ ] Create user menu.
-- [ ] Create page container/layout primitives.
-- [ ] Implement responsive behavior.
-- [ ] Verify navigation.
+- [x] Create authenticated application shell. (`components/layout/app-shell.tsx`
+      — `SidebarProvider` + `AppSidebar` + `SidebarInset`, parameterized by
+      `role: "recruiter" | "candidate"`.)
+- [x] Create recruiter layout. (`app/recruiter/layout.tsx`, plus a minimal
+      placeholder `page.tsx` under `/recruiter`, `jobs`, `candidates`,
+      `pipeline`, `interviews`, and `settings` — each just a heading and a
+      "Not yet implemented" line, so the nav has somewhere real to go
+      without inventing any job/candidate/interview data. Each gets
+      overwritten by the phase that owns it.)
+- [x] Create candidate layout. (`app/candidate/layout.tsx`, same pattern
+      under `/candidate`, `jobs`, `applications`, `interviews`, `profile`.)
+- [x] Create desktop sidebar. (`components/layout/app-sidebar.tsx`, built
+      on shadcn's own `sidebar` primitive rather than a hand-rolled one —
+      its `--sidebar-*` tokens were already sitting in `globals.css` from
+      the Phase 1 `base-nova` init, which was the tell that this was the
+      intended building block. Expanded by default, matching
+      frontend-design.md's nav diagram width, with an optional collapse-
+      to-icon toggle next to the logo.)
+- [x] Create mobile navigation. (Below `md`, the sidebar becomes an
+      off-canvas `Sheet` opened from a slim top bar's hamburger trigger —
+      the primitive's built-in behavior, not something hand-built.)
+- [x] Create user menu. (`components/layout/user-menu.tsx` — avatar +
+      dropdown at the bottom of the sidebar, reading `useAuthStore()`
+      directly. Nothing is populated with a real session yet, so it
+      honestly shows "Not signed in" / "Sign in to continue" rather than
+      a fabricated name — Phase 3 is what makes this real.)
+- [x] Create page container/layout primitives. (`components/layout/page-container.tsx`
+      — padded wrapper with an optional title/description, used by every
+      placeholder page added this phase.)
+- [x] Implement responsive behavior. (Desktop: fixed sidebar, optional
+      icon-collapse. Mobile: hamburger + off-canvas drawer that closes
+      itself after a nav click or logout — the primitive doesn't do this
+      by default, had to wire `useSidebar().setOpenMobile(false)` into
+      the nav links and the user menu's Settings/Log out actions.)
+- [x] Verify navigation. (Live-verified with a headless-browser pass —
+      `chromium-cli` and Playwright weren't preinstalled, so Playwright's
+      Chromium was fetched via `bunx` for a one-off scripted check rather
+      than skipped. Caught two real bugs this way, neither visible from
+      `tsc`/`build`: (1) `AppShell` was a Server Component passing icon
+      *component references* as props into the client `AppSidebar` —
+      RSC disallows passing raw functions across that boundary, and it
+      broke prerendering; fixed by marking `AppShell` client, since it's
+      pure interactive chrome with nothing server-only in it. (2) the
+      user menu's `DropdownMenuLabel` threw at runtime — Base UI's
+      `Menu.GroupLabel` requires a `Menu.Group` ancestor, which
+      shadcn's own generated `DropdownMenuLabel` doesn't wrap for you;
+      fixed by wrapping the label/items in `DropdownMenuGroup`. Also
+      fixed an unrelated `react-hooks/set-state-in-effect` lint error in
+      shadcn's own generated `hooks/use-mobile.ts` — rewrote it on
+      `useSyncExternalStore`, the React-recommended way to subscribe to
+      `matchMedia`, instead of `useState` + `useEffect`.)
+
+Confirmed live in a real browser (desktop 1440px and mobile 375px, both
+roles): sidebar renders with the right nav items and icons, active-item
+highlighting follows the route on both direct navigation and link
+clicks, the user menu opens without console errors, and the mobile
+drawer opens/closes correctly including after a nav click. `bun run
+typecheck`, `bun run lint`, and `bun run build` are all clean; all 12
+new routes prerender.
 
 ---
 
