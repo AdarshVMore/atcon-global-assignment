@@ -21,7 +21,7 @@ export default function PipelinePickerPage() {
           onRetry={() => refetch()}
         />
       )}
-      {data && data.length === 0 && <p className="text-sm text-muted-foreground">You haven't created any jobs yet.</p>}
+      {data && data.length === 0 && <p className="text-sm text-muted-foreground">You haven&apos;t created any jobs yet.</p>}
       {data && data.length > 0 && (
         <div className="flex flex-col gap-2">
           {data.map((job) => (
