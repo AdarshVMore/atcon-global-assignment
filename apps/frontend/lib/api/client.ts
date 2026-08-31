@@ -2,7 +2,9 @@ import { getStoredToken } from "../auth/token";
 import { ApiError } from "./error";
 import type { ApiErrorBody } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+// Routed through Next's own rewrite (see next.config.ts) so the browser
+// only ever talks same-origin — the backend has no CORS configuration.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
