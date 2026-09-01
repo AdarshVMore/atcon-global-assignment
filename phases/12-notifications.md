@@ -56,14 +56,17 @@ application, ...) has already committed on its own, and the
 notification itself is pure side effect. So the job payload is
 `{userId, type, title, message}` directly; the worker creates the row.
 
-**Notification delivery isn't redelivery-idempotent, and that's a
-deliberate, documented tradeoff.** Unlike the other two workers, there's
-no existing-row check to skip a redelivered job — a rare BullMQ
-redelivery would create a duplicate in-app notification. Building real
-dedup (an idempotency key, a unique constraint) is more machinery than
-a low-stakes side effect like this warrants; a duplicate notification
-is mildly annoying, never destructive or state-corrupting, unlike a
-duplicate resume-parse or ranking result would be.
+**Notification delivery is now redelivery-idempotent.** Originally
+accepted as a documented tradeoff (a rare redelivery would create a
+duplicate in-app notification and resend the email) on the reasoning
+that building real dedup was more machinery than a low-stakes side
+effect warranted. Revisited: the fix turned out cheap — `Notification`
+now has a unique `sourceJobId` column (the triggering BullMQ job's
+`id`, stable across every retry of that job) and a `processedAt` flag.
+The worker upserts on `sourceJobId` instead of inserting, and skips
+re-sending the email if `processedAt` is already set. See
+[architecture/background-jobs.md](../architecture/background-jobs.md)
+for the mechanism.
 
 **`INTERVIEW_COMPLETED` has no notification.** The `NotificationType`
 enum has no matching value, and adding one is a schema migration this

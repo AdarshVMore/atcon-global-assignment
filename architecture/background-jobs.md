@@ -81,6 +81,19 @@ already committed on its own (Phase 12).
 provider is configured for this project. Swapping in a real provider
 means implementing that interface; no caller changes.
 
+**Notification idempotency.** Unlike `resume.parse`/`application.rank`,
+which check already-persisted state (`Resume.status`,
+`Application.rankedAt`) to no-op on redelivery, `notification.send`
+originally had no redelivery guard at all — the `Notification` row
+doesn't exist until the worker creates it, so there was nothing to
+check against, and a redelivered job (worker crash between processing
+and ack, a stalled-job requeue) would create a duplicate row and send
+the email twice. Fixed by using the BullMQ job's `id` — stable across
+every retry of that job — as an idempotency key: `Notification` now
+has a unique `sourceJobId` column, the worker upserts on it instead of
+inserting, and a `processedAt` flag tracks whether that job's side
+effects (the email) already ran, so a redelivery is a no-op.
+
 ## LiveKit (Optional)
 
 LiveKit is optional and not part of the core architecture. Implement it

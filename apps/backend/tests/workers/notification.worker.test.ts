@@ -9,13 +9,38 @@ import type { NotificationSendJobData } from "../../src/queues/notification.queu
 
 function fakeNotificationRepository(overrides: Partial<NotificationRepository> = {}): NotificationRepository & {
   created: CreateNotificationInput[];
+  rows: Map<string, Notification>;
 } {
   const created: CreateNotificationInput[] = [];
+  const rows = new Map<string, Notification>();
   return {
     created,
-    create: async (input) => {
+    rows,
+    findOrCreateBySourceJobId: async (sourceJobId, input) => {
+      const existing = rows.get(sourceJobId);
+      if (existing) {
+        return existing;
+      }
       created.push(input);
-      return { id: "notification-1", isRead: false, createdAt: new Date(), ...input } as Notification;
+      const notification = {
+        id: `notification-${rows.size + 1}`,
+        isRead: false,
+        createdAt: new Date(),
+        processedAt: null,
+        sourceJobId,
+        ...input,
+      } as Notification;
+      rows.set(sourceJobId, notification);
+      return notification;
+    },
+    markProcessed: async (id) => {
+      const notification = [...rows.values()].find((row) => row.id === id);
+      if (!notification) {
+        throw new Error("not found");
+      }
+      const processed = { ...notification, processedAt: new Date() };
+      rows.set(notification.sourceJobId, processed);
+      return processed;
     },
     findById: async () => null,
     findByUserId: async () => [],
@@ -23,7 +48,7 @@ function fakeNotificationRepository(overrides: Partial<NotificationRepository> =
       throw new Error("not used");
     },
     ...overrides,
-  } as NotificationRepository & { created: CreateNotificationInput[] };
+  } as NotificationRepository & { created: CreateNotificationInput[]; rows: Map<string, Notification> };
 }
 
 function fakeUserRepository(overrides: Partial<UserRepository> = {}): UserRepository {
@@ -48,8 +73,8 @@ function fakeEmailSender(overrides: Partial<EmailSender> = {}): EmailSender & { 
   } as EmailSender & { sent: EmailMessage[] };
 }
 
-function buildJob(data: NotificationSendJobData): Job<NotificationSendJobData> {
-  return { data } as Job<NotificationSendJobData>;
+function buildJob(data: NotificationSendJobData, id = "job-1"): Job<NotificationSendJobData> {
+  return { id, data } as Job<NotificationSendJobData>;
 }
 
 describe("notificationSend worker processor", () => {
@@ -88,5 +113,23 @@ describe("notificationSend worker processor", () => {
 
     expect(notificationRepository.created.length).toBe(1);
     expect(emailSender.sent).toEqual([]);
+  });
+
+  test("redelivering the same job does not create a duplicate row or resend the email", async () => {
+    const notificationRepository = fakeNotificationRepository();
+    const emailSender = fakeEmailSender();
+    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender);
+    const jobData: NotificationSendJobData = {
+      userId: "user-1",
+      type: NotificationType.APPLICATION_RECEIVED,
+      title: "New application",
+      message: "A candidate applied",
+    };
+
+    await processor(buildJob(jobData, "job-42"));
+    await processor(buildJob(jobData, "job-42"));
+
+    expect(notificationRepository.created.length).toBe(1);
+    expect(emailSender.sent.length).toBe(1);
   });
 });

@@ -8,8 +8,21 @@ export interface CreateNotificationInput {
 }
 
 export class NotificationRepository {
-  create(input: CreateNotificationInput): Promise<Notification> {
-    return prisma.notification.create({ data: input });
+  /**
+   * Upserts on the triggering BullMQ job's id, which stays the same across
+   * every retry/redelivery of that job — so a redelivered job finds the row
+   * this same job already created instead of inserting a duplicate.
+   */
+  findOrCreateBySourceJobId(sourceJobId: string, input: CreateNotificationInput): Promise<Notification> {
+    return prisma.notification.upsert({
+      where: { sourceJobId },
+      create: { ...input, sourceJobId },
+      update: {},
+    });
+  }
+
+  markProcessed(id: string): Promise<Notification> {
+    return prisma.notification.update({ where: { id }, data: { processedAt: new Date() } });
   }
 
   findById(id: string): Promise<Notification | null> {

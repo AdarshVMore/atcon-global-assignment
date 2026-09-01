@@ -14,13 +14,16 @@ function buildNotification(overrides: Partial<Notification> = {}): Notification 
     message: "A candidate applied",
     isRead: false,
     createdAt: new Date(),
+    sourceJobId: "job-1",
+    processedAt: null,
     ...overrides,
   };
 }
 
 function fakeRepository(overrides: Partial<NotificationRepository> = {}): NotificationRepository {
   return {
-    create: async () => buildNotification(),
+    findOrCreateBySourceJobId: async () => buildNotification(),
+    markProcessed: async () => buildNotification({ processedAt: new Date() }),
     findById: async () => buildNotification(),
     findByUserId: async () => [buildNotification()],
     markAsRead: async () => buildNotification({ isRead: true }),
