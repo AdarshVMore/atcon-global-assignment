@@ -9,3 +9,6 @@ build/
 coverage/
 .DS_Store
 .claude/settings.local.json
+
+# YoYo AI version control directory
+.yoyo/
