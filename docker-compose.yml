@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - atcon_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
@@ -16,6 +21,11 @@ services:
       - "6379:6379"
     volumes:
       - atcon_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   minio:
     image: minio/minio
@@ -28,6 +38,127 @@ services:
       - "9001:9001"
     volumes:
       - atcon_minio_data:/data
+
+  # One-shot: creates the resume-storage bucket, then exits. Retries the
+  # alias connection itself rather than relying on a healthcheck on the
+  # minio service — the minio/minio image doesn't reliably ship curl/wget
+  # for a healthcheck to use, but minio/mc always has a shell and `mc`.
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
+      mc mb --ignore-existing local/ats-resumes
+      "
+
+  # One-shot: applies migrations, then exits. backend/worker wait for this
+  # to succeed rather than each racing to migrate on startup.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    working_dir: /app/packages/database
+    command: ["bunx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atcon_ats
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-shot, optional: seeds a demo recruiter/candidate/job/application
+  # (recruiter@atcon.dev / candidate@atcon.dev — see packages/database/prisma/seed.ts).
+  # Idempotent (upserts), so safe to run on every `up`. Nothing waits on
+  # this — a slow or failed seed shouldn't hold up the actual app.
+  seed:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    working_dir: /app/packages/database
+    command: ["bun", "run", "prisma/seed.ts"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atcon_ats
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atcon_ats
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-openai/text-embedding-3-small}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ats-resumes
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    command: ["bun", "run", "src/worker.ts"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atcon_ats
+      REDIS_URL: redis://redis:6379
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-openai/text-embedding-3-small}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ats-resumes
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      NEXT_PUBLIC_API_URL: /api
+      BACKEND_URL: http://backend:3000
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   atcon_postgres_data:
