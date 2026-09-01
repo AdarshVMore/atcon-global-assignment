@@ -37,6 +37,19 @@ Notify users about important recruitment events. See
       and ranking queues from Phase 8/10)
 - [x] Add notification tests. (`notification.service.test.ts`,
       `notificationSend.worker.test.ts`)
+- [x] Real-time delivery. (Added after the original phase pass, once
+      polling's ~30s lag was raised as worth fixing —
+      `NotificationStreamHub` + `GET /notifications/stream` (SSE),
+      bridged from the worker process via Redis pub/sub. Kept the
+      original poll in place underneath as a fallback rather than
+      replacing it. See the Architecture Note below and
+      [architecture/background-jobs.md](../architecture/background-jobs.md#notifications).
+      Live-verified: a real job enqueued via the actual queue arrived
+      over a real `curl` SSE connection — both hitting the backend
+      directly and through the Next.js dev server's `/api` rewrite,
+      since that rewrite buffering the response instead of streaming it
+      was the real risk here. Not clicked through with an actual
+      `EventSource` in a browser tab this session.)
 
 ### Architecture Note
 

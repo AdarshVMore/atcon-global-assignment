@@ -11,11 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMarkNotificationRead, useNotifications } from "@/features/notifications/useNotifications";
+import { useMarkNotificationRead, useNotifications, useNotificationStream } from "@/features/notifications/useNotifications";
 
 export function NotificationsMenu() {
   const { data: notifications } = useNotifications();
   const markAsRead = useMarkNotificationRead();
+  useNotificationStream();
   const unreadCount = (notifications ?? []).filter((n) => !n.isRead).length;
 
   return (

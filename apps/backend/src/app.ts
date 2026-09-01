@@ -4,7 +4,7 @@ import { ApplicationRepository } from "./modules/applications/application.reposi
 import { ApplicationService } from "./modules/applications/application.service.ts";
 import { AuthController } from "./modules/auth/auth.controller.ts";
 import { AuthService } from "./modules/auth/auth.service.ts";
-import { requireAuth, requireRole } from "./modules/auth/auth.middleware.ts";
+import { requireAuth, requireAuthFromQuery, requireRole } from "./modules/auth/auth.middleware.ts";
 import { UserRepository } from "./modules/auth/auth.repository.ts";
 import { CandidateController } from "./modules/candidates/candidate.controller.ts";
 import { DashboardController } from "./modules/dashboard/dashboard.controller.ts";
@@ -26,6 +26,7 @@ import { JobService } from "./modules/jobs/job.service.ts";
 import { NotificationController } from "./modules/notifications/notification.controller.ts";
 import { NotificationRepository } from "./modules/notifications/notification.repository.ts";
 import { NotificationService } from "./modules/notifications/notification.service.ts";
+import { NotificationStreamHub } from "./modules/notifications/notificationStreamHub.ts";
 import { applicationRankQueue } from "./queues/ranking.queue.ts";
 import { notificationSendQueue } from "./queues/notification.queue.ts";
 import { resumeParseQueue } from "./queues/resume.queue.ts";
@@ -56,7 +57,8 @@ export function buildRoutes() {
 
   const notificationRepository = new NotificationRepository();
   const notificationService = new NotificationService(notificationRepository, notificationSendQueue);
-  const notificationController = new NotificationController(notificationService);
+  const notificationStreamHub = new NotificationStreamHub();
+  const notificationController = new NotificationController(notificationService, notificationStreamHub);
 
   const applicationService = new ApplicationService(
     applicationRepository,
@@ -163,6 +165,9 @@ export function buildRoutes() {
     },
     "/notifications": {
       GET: withErrorHandling(requireAuth(notificationController.list)),
+    },
+    "/notifications/stream": {
+      GET: withErrorHandling(requireAuthFromQuery(notificationController.stream)),
     },
     "/notifications/:notificationId/read": {
       PATCH: withErrorHandling(requireAuth(notificationController.markAsRead)),

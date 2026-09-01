@@ -38,10 +38,34 @@ Application Stage Changed
           ▼
  Notification Worker
           │
-      ┌───┴────┐
-      ▼        ▼
-   In-App    Email
+      ┌───┴─────────┐
+      ▼             ▼
+   In-App          Email
+      │
+      ▼
+ Redis Pub/Sub ──► SSE (open browser tabs)
 ```
+
+**Delivery to the browser is push (SSE) with poll as a fallback, not
+poll-only.** The notification worker runs in a separate OS process from
+the API — when it creates a `Notification` row, the API process (which
+holds any open SSE connections) has no way to know unless told. Redis,
+already in the stack for BullMQ, is the bridge: the worker publishes to
+a `notification.created` channel after processing each job (best
+effort — a publish failure is logged and swallowed, not retried, since
+the row and email are already correct either way); `NotificationStreamHub`
+in the API process holds one shared subscriber connection and fans
+events out to open `GET /notifications/stream` connections by user id.
+The frontend's 30s poll (`useNotifications`) stays in place underneath
+this as a reconciliation fallback — if a connection drops or a publish
+is missed, the poll still catches up within 30s, so SSE is additive,
+not a replacement the rest of the system depends on for correctness.
+
+`EventSource` can't send custom request headers, and this app's whole
+auth model is a bearer token (no cookies) — so the stream endpoint is
+the one place a token travels as a `?token=` query param instead of the
+`Authorization` header, verified by a dedicated `requireAuthFromQuery`
+alongside the header-based `requireAuth`.
 
 A notification failure should not normally roll back a successful
 application stage transition. Keep the notification system simple —

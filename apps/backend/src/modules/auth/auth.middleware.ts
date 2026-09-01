@@ -13,11 +13,34 @@ function extractBearerToken(req: Request): string {
   return header.slice("Bearer ".length);
 }
 
+function extractQueryToken(req: Request): string {
+  const token = new URL(req.url).searchParams.get("token");
+  if (!token) {
+    throw new UnauthorizedError("Missing token");
+  }
+  return token;
+}
+
 export function requireAuth<Req extends Request>(
   handler: (req: AuthenticatedRequest<Req>) => Promise<Response> | Response,
 ): (req: Req) => Promise<Response> {
   return async (req: Req): Promise<Response> => {
     const token = extractBearerToken(req);
+    const user = await verifyAccessToken(token);
+    return handler(Object.assign(req, { user }));
+  };
+}
+
+/**
+ * Same as requireAuth, but reads the token from a `?token=` query param
+ * instead of the Authorization header — for EventSource connections, which
+ * can't send custom request headers.
+ */
+export function requireAuthFromQuery<Req extends Request>(
+  handler: (req: AuthenticatedRequest<Req>) => Promise<Response> | Response,
+): (req: Req) => Promise<Response> {
+  return async (req: Req): Promise<Response> => {
+    const token = extractQueryToken(req);
     const user = await verifyAccessToken(token);
     return handler(Object.assign(req, { user }));
   };

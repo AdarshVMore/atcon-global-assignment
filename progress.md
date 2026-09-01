@@ -555,3 +555,30 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   alone uncommitted only where genuinely ambiguous; none were, so
   everything in the working tree at session start is now committed
   except `.vscode/` (editor-local, left alone).
+- 2026-09-01 — Phase 12 — Replaced notification polling's ~30s lag with
+  real-time SSE, keeping the poll as a fallback rather than removing
+  it. New `NotificationStreamHub` (one shared Redis subscriber
+  connection in the API process, fanned out by user id) + `GET
+  /notifications/stream`, fed by the worker publishing to a
+  `notification.created` Redis channel after each job. New
+  `requireAuthFromQuery` middleware since `EventSource` can't send the
+  `Authorization` header — the stream takes the token as `?token=`
+  instead. Frontend: `useNotificationStream()` opens the connection and
+  invalidates the existing `useNotifications` query on each event
+  (server stays the one source of truth, no separate client-side merge
+  logic). Live-verified end to end twice — direct to the backend, and
+  through the Next.js dev server's `/api` rewrite (the real risk,
+  since a rewrite that buffers instead of streams would've silently
+  broken this) — using a real enqueued `notification.send` job and a
+  real `curl` SSE connection, not just typecheck. Also discovered and
+  fixed unrelated damage while testing: a stale `bun run worker`
+  process from earlier in the day (predating the notification
+  idempotency migration) was failing every job on attempt 1 with a
+  null-constraint violation on `sourceJobId`, silently recovering only
+  via BullMQ's retry — restarted it.
+- 2026-09-01 — Phase 13 (frontend) — Committed pre-existing uncommitted
+  work found alongside the SSE change: real candidate names (instead of
+  truncated ids) on the Kanban board, the recruiter's candidates list,
+  and the recruiter's interviews list, via a new `useCandidateNames()`
+  hook fanning out to the `GET /applications/:id/candidate` endpoint
+  per application (no bulk endpoint exists) and caching each result.

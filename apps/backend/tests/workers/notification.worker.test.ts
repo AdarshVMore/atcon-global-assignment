@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { NotificationType, Role, type Notification, type User } from "@atcon/database";
 import type { Job } from "bullmq";
+import type IORedis from "ioredis";
 import { createNotificationSendProcessor } from "../../src/workers/notification.worker.ts";
 import type { UserRepository } from "../../src/modules/auth/auth.repository.ts";
 import type { EmailMessage, EmailSender } from "../../src/modules/notifications/emailSender.ts";
 import type { CreateNotificationInput, NotificationRepository } from "../../src/modules/notifications/notification.repository.ts";
+import { NOTIFICATION_CHANNEL } from "../../src/modules/notifications/notificationPubSub.ts";
 import type { NotificationSendJobData } from "../../src/queues/notification.queue.ts";
 
 function fakeNotificationRepository(overrides: Partial<NotificationRepository> = {}): NotificationRepository & {
@@ -77,11 +79,24 @@ function buildJob(data: NotificationSendJobData, id = "job-1"): Job<Notification
   return { id, data } as Job<NotificationSendJobData>;
 }
 
+function fakePublisherConnection(overrides: Partial<IORedis> = {}): IORedis & { published: [string, string][] } {
+  const published: [string, string][] = [];
+  return {
+    published,
+    publish: async (channel: string, message: string) => {
+      published.push([channel, message]);
+      return 1;
+    },
+    ...overrides,
+  } as IORedis & { published: [string, string][] };
+}
+
 describe("notificationSend worker processor", () => {
   test("creates the in-app notification and sends an email", async () => {
     const notificationRepository = fakeNotificationRepository();
     const emailSender = fakeEmailSender();
-    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender);
+    const publisher = fakePublisherConnection();
+    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender, publisher);
 
     await processor(
       buildJob({
@@ -105,6 +120,7 @@ describe("notificationSend worker processor", () => {
       notificationRepository,
       fakeUserRepository({ findById: async () => null }),
       emailSender,
+      fakePublisherConnection(),
     );
 
     await processor(
@@ -118,7 +134,12 @@ describe("notificationSend worker processor", () => {
   test("redelivering the same job does not create a duplicate row or resend the email", async () => {
     const notificationRepository = fakeNotificationRepository();
     const emailSender = fakeEmailSender();
-    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender);
+    const processor = createNotificationSendProcessor(
+      notificationRepository,
+      fakeUserRepository(),
+      emailSender,
+      fakePublisherConnection(),
+    );
     const jobData: NotificationSendJobData = {
       userId: "user-1",
       type: NotificationType.APPLICATION_RECEIVED,
@@ -128,6 +149,71 @@ describe("notificationSend worker processor", () => {
 
     await processor(buildJob(jobData, "job-42"));
     await processor(buildJob(jobData, "job-42"));
+
+    expect(notificationRepository.created.length).toBe(1);
+    expect(emailSender.sent.length).toBe(1);
+  });
+
+  test("publishes a notification.created event for real-time delivery", async () => {
+    const notificationRepository = fakeNotificationRepository();
+    const emailSender = fakeEmailSender();
+    const publisher = fakePublisherConnection();
+    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender, publisher);
+
+    await processor(
+      buildJob({
+        userId: "user-1",
+        type: NotificationType.APPLICATION_RECEIVED,
+        title: "New application",
+        message: "A candidate applied",
+      }),
+    );
+
+    expect(publisher.published.length).toBe(1);
+    const [channel, message] = publisher.published[0]!;
+    expect(channel).toBe(NOTIFICATION_CHANNEL);
+    const payload = JSON.parse(message) as { userId: string; notification: { title: string; processedAt: string | null } };
+    expect(payload.userId).toBe("user-1");
+    expect(payload.notification.title).toBe("New application");
+    expect(payload.notification.processedAt).not.toBeNull();
+  });
+
+  test("does not re-publish on a redelivery that's already processed", async () => {
+    const notificationRepository = fakeNotificationRepository();
+    const emailSender = fakeEmailSender();
+    const publisher = fakePublisherConnection();
+    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender, publisher);
+    const jobData: NotificationSendJobData = {
+      userId: "user-1",
+      type: NotificationType.APPLICATION_RECEIVED,
+      title: "New application",
+      message: "A candidate applied",
+    };
+
+    await processor(buildJob(jobData, "job-42"));
+    await processor(buildJob(jobData, "job-42"));
+
+    expect(publisher.published.length).toBe(1);
+  });
+
+  test("a publish failure doesn't fail the job — the row is still processed", async () => {
+    const notificationRepository = fakeNotificationRepository();
+    const emailSender = fakeEmailSender();
+    const publisher = fakePublisherConnection({
+      publish: async () => {
+        throw new Error("redis is down");
+      },
+    });
+    const processor = createNotificationSendProcessor(notificationRepository, fakeUserRepository(), emailSender, publisher);
+
+    await processor(
+      buildJob({
+        userId: "user-1",
+        type: NotificationType.APPLICATION_RECEIVED,
+        title: "New application",
+        message: "A candidate applied",
+      }),
+    );
 
     expect(notificationRepository.created.length).toBe(1);
     expect(emailSender.sent.length).toBe(1);
