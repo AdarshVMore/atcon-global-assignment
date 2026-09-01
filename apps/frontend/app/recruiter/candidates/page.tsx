@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { KanbanBoard } from "@/components/pipeline/kanban-board";
 import { CandidateDetailSheet } from "@/components/candidates/candidate-detail-sheet";
 import { useApplications } from "@/features/applications/useApplications";
+import { useCandidateNames } from "@/features/candidates/useCandidateNames";
 import { useJob } from "@/features/jobs/useJobs";
 import { ApiError } from "@/lib/api/error";
 import type { Application } from "@/types/applications";
@@ -53,6 +54,7 @@ function ScopedCandidatesBoard({ jobId }: { jobId: string }) {
 function AllCandidatesList() {
   const { data, isLoading, isError, error, refetch } = useApplications();
   const [selected, setSelected] = useState<Application | null>(null);
+  const names = useCandidateNames(data ?? []);
 
   return (
     <PageContainer
@@ -74,7 +76,9 @@ function AllCandidatesList() {
               <Card className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">Candidate {application.candidateId.slice(0, 8)}</p>
+                    <p className="font-medium">
+                      {names.get(application.id) ?? `Candidate ${application.candidateId.slice(0, 8)}`}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {application.job.title} · applied {new Date(application.appliedAt).toLocaleDateString()}
                     </p>

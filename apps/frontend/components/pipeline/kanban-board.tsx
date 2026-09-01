@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useKanbanMoveStage } from "@/features/applications/useKanbanMoveStage";
+import { useCandidateNames } from "@/features/candidates/useCandidateNames";
 import { ApiError } from "@/lib/api/error";
 import type { Application } from "@/types/applications";
 import type { JobStage } from "@/types/jobs";
@@ -46,6 +47,7 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const sortedStages = [...stages].sort((a, b) => a.order - b.order);
   const moveStage = useKanbanMoveStage(queryKey);
+  const names = useCandidateNames(applications);
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -91,6 +93,7 @@ export function KanbanBoard({
             key={stage.id}
             stage={stage}
             applications={applications.filter((application) => application.currentStageId === stage.id)}
+            names={names}
             onCardClick={onCardClick}
             cardMeta={cardMeta}
           />
@@ -107,6 +110,7 @@ export function KanbanBoard({
             key={stage.id}
             stage={stage}
             applications={applications.filter((application) => application.currentStageId === stage.id)}
+            names={names}
             isDragging={!!activeId}
             isValidTarget={activeId ? activeValidTargets.has(stage.id) : false}
             isSourceColumn={activeApplication?.currentStageId === stage.id}
@@ -118,7 +122,11 @@ export function KanbanBoard({
       <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
         {activeApplication ? (
           <div className="w-72 rotate-2 scale-105 shadow-xl">
-            <KanbanCard application={activeApplication} meta={cardMeta?.(activeApplication)} />
+            <KanbanCard
+              application={activeApplication}
+              name={names.get(activeApplication.id)}
+              meta={cardMeta?.(activeApplication)}
+            />
           </div>
         ) : null}
       </DragOverlay>
@@ -129,6 +137,7 @@ export function KanbanBoard({
 function DroppableColumn({
   stage,
   applications,
+  names,
   isDragging,
   isValidTarget,
   isSourceColumn,
@@ -137,6 +146,7 @@ function DroppableColumn({
 }: {
   stage: JobStage;
   applications: Application[];
+  names: Map<string, string>;
   isDragging: boolean;
   isValidTarget: boolean;
   isSourceColumn: boolean;
@@ -165,6 +175,7 @@ function DroppableColumn({
           <DraggableCard
             key={application.id}
             application={application}
+            name={names.get(application.id)}
             onClick={onCardClick}
             meta={cardMeta?.(application)}
           />
@@ -177,11 +188,13 @@ function DroppableColumn({
 function StaticColumn({
   stage,
   applications,
+  names,
   onCardClick,
   cardMeta,
 }: {
   stage: JobStage;
   applications: Application[];
+  names: Map<string, string>;
   onCardClick?: (application: Application) => void;
   cardMeta?: (application: Application) => React.ReactNode;
 }) {
@@ -194,7 +207,7 @@ function StaticColumn({
         )}
         {applications.map((application) => (
           <button key={application.id} className="text-left" onClick={() => onCardClick?.(application)}>
-            <KanbanCard application={application} meta={cardMeta?.(application)} />
+            <KanbanCard application={application} name={names.get(application.id)} meta={cardMeta?.(application)} />
           </button>
         ))}
       </div>
@@ -218,10 +231,12 @@ function ColumnHeader({ stage, count }: { stage: JobStage; count: number }) {
 
 function DraggableCard({
   application,
+  name,
   onClick,
   meta,
 }: {
   application: Application;
+  name?: string;
   onClick?: (application: Application) => void;
   meta?: React.ReactNode;
 }) {
@@ -239,7 +254,7 @@ function DraggableCard({
       onClick={() => onClick?.(application)}
       className={cn("cursor-grab touch-none transition-opacity active:cursor-grabbing", isDragging && "opacity-30")}
     >
-      <KanbanCard application={application} meta={meta} />
+      <KanbanCard application={application} name={name} meta={meta} />
     </div>
   );
 }
