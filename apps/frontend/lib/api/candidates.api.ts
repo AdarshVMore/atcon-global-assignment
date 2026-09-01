@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { CandidateProfile, Resume } from "@/types/candidates";
+import type { CandidateProfile, CandidateProfileWithResumes, Resume } from "@/types/candidates";
 
 export const candidatesApi = {
   getProfile: () => apiClient.get<CandidateProfile>("/candidates/me"),
@@ -10,4 +10,6 @@ export const candidatesApi = {
     formData.append("file", file);
     return apiClient.upload<Resume>("/candidates/me/resumes", formData);
   },
+  getForApplication: (applicationId: string) =>
+    apiClient.get<CandidateProfileWithResumes>(`/applications/${applicationId}/candidate`),
 };

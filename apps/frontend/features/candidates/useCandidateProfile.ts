@@ -33,3 +33,11 @@ export function useUploadResume() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["candidate", "resumes"] }),
   });
 }
+
+export function useCandidateForApplication(applicationId: string | null) {
+  return useQuery({
+    queryKey: ["candidate", "for-application", applicationId],
+    queryFn: () => candidatesApi.getForApplication(applicationId!),
+    enabled: !!applicationId,
+  });
+}

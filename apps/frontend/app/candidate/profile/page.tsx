@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page-container";
 import { LoadingState } from "@/components/layout/loading-state";
 import { ErrorState } from "@/components/layout/error-state";
+import { CandidateProfileView } from "@/components/candidates/candidate-profile-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,6 @@ import {
   useUpdateCandidateProfile,
   useUploadResume,
 } from "@/features/candidates/useCandidateProfile";
-import { useAuthStore } from "@/stores/auth.store";
 import { ApiError } from "@/lib/api/error";
 import type { CandidateProfile, ResumeStatus } from "@/types/candidates";
 
@@ -29,9 +29,10 @@ const resumeStatusStyles: Record<ResumeStatus, string> = {
 
 export default function CandidateProfilePage() {
   const { data: profile, isLoading, isError, error, refetch } = useCandidateProfile();
+  const { data: resumes } = useResumes();
 
   return (
-    <PageContainer title="Profile" description="Your account details and resumes.">
+    <PageContainer title="Profile" description="What recruiters see when they open your application.">
       {isLoading && <LoadingState />}
       {isError && (
         <ErrorState
@@ -40,16 +41,24 @@ export default function CandidateProfilePage() {
         />
       )}
 
+      {profile && (
+        <CandidateProfileView
+          name={profile.user.name}
+          email={profile.user.email}
+          phone={profile.phone}
+          resumes={resumes ?? []}
+        />
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-        {profile && <AccountCard profile={profile} />}
+        {profile && <EditContactCard profile={profile} />}
         <ResumesCard />
       </div>
     </PageContainer>
   );
 }
 
-function AccountCard({ profile }: { profile: CandidateProfile }) {
-  const user = useAuthStore((state) => state.user);
+function EditContactCard({ profile }: { profile: CandidateProfile }) {
   const updateProfile = useUpdateCandidateProfile();
   const [phone, setPhone] = useState(profile.phone ?? "");
 
@@ -64,22 +73,18 @@ function AccountCard({ profile }: { profile: CandidateProfile }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Account</CardTitle>
+        <CardTitle>Contact info</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSaveProfile} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label>Name</Label>
-            <Input value={user?.name ?? ""} disabled />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Email</Label>
-            <Input value={user?.email ?? ""} disabled />
-          </div>
-          <div className="flex flex-col gap-1.5">
             <Label htmlFor="phone">Phone</Label>
             <Input id="phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Name and email come from your account. Skills, experience and education are read from your most
+            recently parsed resume — upload a new one to update them.
+          </p>
           <Button type="submit" size="sm" disabled={updateProfile.isPending} className="self-start">
             {updateProfile.isPending ? "Saving..." : "Save"}
           </Button>

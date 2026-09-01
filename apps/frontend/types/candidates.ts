@@ -1,12 +1,47 @@
 export interface CandidateProfile {
   id: string;
-  userId: string;
   phone: string | null;
   createdAt: string;
   updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+  };
+}
+
+export interface CandidateProfileWithResumes extends CandidateProfile {
+  resumes: Resume[];
 }
 
 export type ResumeStatus = "UPLOADED" | "PROCESSING" | "PARSED" | "FAILED";
+
+export interface ParsedResumeEducation {
+  institution: string;
+  degree: string | null;
+}
+
+export interface ParsedResumeWorkExperience {
+  company: string;
+  title: string | null;
+  durationYears: number | null;
+}
+
+export interface ParsedResumeStructured {
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  summary: string | null;
+  skills: string[];
+  yearsOfExperience: number | null;
+  education: ParsedResumeEducation[];
+  workExperience: ParsedResumeWorkExperience[];
+}
+
+export interface ResumeParsedData {
+  rawText: string;
+  structured: ParsedResumeStructured | null;
+}
 
 export interface Resume {
   id: string;
@@ -16,7 +51,7 @@ export interface Resume {
   mimeType: string;
   fileHash: string;
   status: ResumeStatus;
-  parsedData: unknown;
+  parsedData: ResumeParsedData | null;
   parseError: string | null;
   uploadedAt: string;
   parsedAt: string | null;
