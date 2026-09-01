@@ -79,6 +79,20 @@ reason yet. Recruiter read access to a specific candidate's profile
 who applied to their jobs, not browse candidates directly. `api-design.md`
 explicitly allows routes to evolve as implementation details firm up.
 
+**Later addition — recruiter resume file access.** This phase
+originally left `Resume.fileUrl` as a write-only storage key with no
+way for a recruiter to actually view the file (noted as a gap in the
+frontend's Phase 6 candidate work). Added afterward: `GET
+/applications/:applicationId/candidate/resumes/:resumeId`
+(`ResumeService.getFileForRecruiter`), streaming the file bytes through
+the backend, scoped through the application relationship the same way
+as `GET /applications/:applicationId/candidate`. See
+[architecture/resume-processing.md](../architecture/resume-processing.md#recruiter-file-access)
+for why bytes are proxied rather than a presigned S3 URL handed back.
+Live-verified: uploaded a real PDF as a candidate, applied, fetched it
+back byte-for-byte identical as the owning recruiter, and confirmed a
+different recruiter gets `404` and a candidate gets `403`.
+
 ### Verification
 
 - [x] Candidate can manage profile (get, update phone — verified live).

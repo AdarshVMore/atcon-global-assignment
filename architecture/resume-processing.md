@@ -91,3 +91,26 @@ Legacy `.doc` files are accepted at upload (the MIME type is allowed)
 but not parsed — only `.pdf` and `.docx` have real text extraction.
 Parsing a `.doc` fails immediately and cleanly (`FAILED`, a specific
 `parseError`); the upload itself still succeeds.
+
+## Recruiter File Access
+
+`Resume.fileUrl` is a raw object-storage key, not a fetchable URL — a
+recruiter can't be handed it directly. `GET
+/applications/:applicationId/candidate/resumes/:resumeId`
+(`ResumeService.getFileForRecruiter`) streams the actual file bytes
+through the backend instead, scoped through the application
+relationship exactly like `GET /applications/:applicationId/candidate`
+(must belong to a job this recruiter owns; the resume must belong to
+that same candidate) — a recruiter can't fetch a resume by guessing its
+id. Proxying bytes through the backend was chosen over a presigned S3
+URL: it reuses the existing bearer-token auth model as-is, whereas a
+presigned URL would need the S3-compatible endpoint reachable directly
+from the browser with its own CORS configuration — a new dependency
+this doesn't need for a resume-sized file.
+
+The frontend fetches the bytes with the `Authorization` header (a
+one-shot request, not a persistent connection, so this doesn't need
+the query-token workaround `GET /notifications/stream` needs), turns
+the response into an object URL, and renders it inline in an `<iframe>`
+for PDFs. Non-PDF resumes (`.docx`, `.doc`) can't be rendered inline by
+a browser, so those get a download link instead of a broken preview.

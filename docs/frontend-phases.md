@@ -283,11 +283,11 @@ clicking in), it's opening one that now shows the real person.
       returns the candidate's profile plus resumes; `CandidateProfileView`
       renders name/skills/education/work history from the most recently
       parsed resume.)
-- [x] Resume section. (Still no fetchable file URL for the raw PDF/docx
-      itself — `Resume.fileUrl` stays a storage key, not shown as a link —
-      but the *parsed content* (skills, education, experience) is now
-      rendered via `CandidateProfileView`, which is what this item was
-      really asking for.)
+- [x] Resume section. (Parsed content — skills, education, experience —
+      renders via `CandidateProfileView` since the Phase 13 update above.
+      A later addition, `ResumeViewerDialog`, closed the remaining gap
+      this note used to describe: the raw file itself is now viewable —
+      see the Phase 13 addendum below.)
 - [x] Application information. (Stage, ranking, stage history.)
 - [x] Candidate drawer. (Rebuilt in Phase 13 as a `Sheet`
       (`CandidateDetailSheet`) rather than the `Dialog` this phase
@@ -550,6 +550,17 @@ faked:
   row appears (both role's interview lists, the application detail
   page, and the interviews panel used inside the candidate detail
   sheet).
+- **Resume file viewer.** `ResumeViewerDialog`, listed under a new
+  "Resumes" section in the candidate detail sheet — a recruiter can now
+  actually view the resume file a candidate applied with, not just its
+  parsed content. Backed by a new backend endpoint (see
+  [phases/05-candidate-and-resume-management.md](../phases/05-candidate-and-resume-management.md)),
+  fetched with the `Authorization` header and rendered as an object URL
+  in an `<iframe>` for PDFs; non-PDF resumes get a download link
+  instead, since browsers can't render `.docx` inline. Live-verified
+  end to end with a real uploaded PDF, byte-for-byte — the one thing in
+  this phase that *was* actually proven live rather than typecheck-only,
+  because it was cheap to script with `curl`.
 
 **Verification status — different from every phase above this one.**
 Phases 0-12 were each live-tested in a real browser before being marked

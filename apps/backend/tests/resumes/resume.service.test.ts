@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { Prisma, ResumeStatus, type Resume } from "@atcon/database";
+import { JobStatus, Prisma, ResumeStatus, type Resume } from "@atcon/database";
 import type { Queue } from "bullmq";
 import { ResumeService } from "../../src/modules/resumes/resume.service.ts";
+import type { ApplicationRepository, ApplicationWithRelations } from "../../src/modules/applications/application.repository.ts";
 import type { CandidateRepository, CandidateWithUser } from "../../src/modules/candidates/candidate.repository.ts";
 import type { ResumeRepository } from "../../src/modules/resumes/resume.repository.ts";
 import type { ResumeParseJobData } from "../../src/queues/resume.queue.ts";
@@ -40,6 +41,15 @@ function fakeResumeRepository(overrides: Partial<ResumeRepository> = {}): Resume
       }) as Resume,
     findByCandidateAndHash: async () => null,
     findByCandidateId: async () => [],
+    findById: async () =>
+      ({
+        id: "resume-1",
+        candidateId: "candidate-1",
+        fileUrl: "resumes/candidate-1/resume.pdf",
+        originalFileName: "resume.pdf",
+        mimeType: "application/pdf",
+        status: ResumeStatus.PARSED,
+      }) as Resume,
     ...overrides,
   } as ResumeRepository;
 }
@@ -50,13 +60,42 @@ function fakeStorage(overrides: Partial<ResumeStorage> = {}): ResumeStorage {
     buildKey: (candidateId, name) => `resumes/${candidateId}/${name}`,
     upload: async () => {},
     delete: async () => {},
+    download: async () => PDF_BYTES,
     ...overrides,
   } as ResumeStorage;
 }
 
+function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {}): ApplicationRepository {
+  return {
+    findById: async () =>
+      ({
+        id: "application-1",
+        candidateId: "candidate-1",
+        job: { id: "job-1", title: "Backend Engineer", recruiterId: "recruiter-1", status: JobStatus.PUBLISHED },
+      }) as ApplicationWithRelations,
+    ...overrides,
+  } as ApplicationRepository;
+}
+
+function buildService(overrides: {
+  resume?: Partial<ResumeRepository>;
+  candidate?: Partial<CandidateRepository>;
+  storage?: Partial<ResumeStorage>;
+  queue?: Partial<Queue<ResumeParseJobData>>;
+  application?: Partial<ApplicationRepository>;
+} = {}): ResumeService {
+  return new ResumeService(
+    fakeResumeRepository(overrides.resume),
+    fakeCandidateRepository(overrides.candidate),
+    fakeStorage(overrides.storage),
+    fakeQueue(overrides.queue),
+    fakeApplicationRepository(overrides.application),
+  );
+}
+
 describe("ResumeService.uploadResume", () => {
   test("rejects an unsupported file type", async () => {
-    const service = new ResumeService(fakeResumeRepository(), fakeCandidateRepository(), fakeStorage(), fakeQueue());
+    const service = buildService();
 
     await expect(
       service.uploadResume("user-1", { name: "resume.exe", type: "application/x-msdownload", data: PDF_BYTES }),
@@ -64,12 +103,9 @@ describe("ResumeService.uploadResume", () => {
   });
 
   test("rejects a duplicate upload of the same file by the same candidate", async () => {
-    const service = new ResumeService(
-      fakeResumeRepository({ findByCandidateAndHash: async () => ({ id: "existing" }) as Resume }),
-      fakeCandidateRepository(),
-      fakeStorage(),
-      fakeQueue(),
-    );
+    const service = buildService({
+      resume: { findByCandidateAndHash: async () => ({ id: "existing" }) as Resume },
+    });
 
     await expect(
       service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
@@ -78,12 +114,10 @@ describe("ResumeService.uploadResume", () => {
 
   test("does not touch storage when the file is a duplicate", async () => {
     let uploadCalled = false;
-    const service = new ResumeService(
-      fakeResumeRepository({ findByCandidateAndHash: async () => ({ id: "existing" }) as Resume }),
-      fakeCandidateRepository(),
-      fakeStorage({ upload: async () => { uploadCalled = true; } }),
-      fakeQueue(),
-    );
+    const service = buildService({
+      resume: { findByCandidateAndHash: async () => ({ id: "existing" }) as Resume },
+      storage: { upload: async () => { uploadCalled = true; } },
+    });
 
     await expect(
       service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
@@ -93,16 +127,14 @@ describe("ResumeService.uploadResume", () => {
 
   test("cleans up the uploaded object if persisting the resume record fails", async () => {
     let deletedKey: string | undefined;
-    const service = new ResumeService(
-      fakeResumeRepository({
+    const service = buildService({
+      resume: {
         create: async () => {
           throw new Error("db is down");
         },
-      }),
-      fakeCandidateRepository(),
-      fakeStorage({ delete: async (key: string) => { deletedKey = key; } }),
-      fakeQueue(),
-    );
+      },
+      storage: { delete: async (key: string) => { deletedKey = key; } },
+    });
 
     await expect(
       service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
@@ -112,8 +144,8 @@ describe("ResumeService.uploadResume", () => {
 
   test("maps a race-condition duplicate (DB constraint, not the pre-check) to a conflict", async () => {
     let deletedKey: string | undefined;
-    const service = new ResumeService(
-      fakeResumeRepository({
+    const service = buildService({
+      resume: {
         create: async () => {
           throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
             code: "P2002",
@@ -121,11 +153,9 @@ describe("ResumeService.uploadResume", () => {
             meta: { driverAdapterError: { cause: { constraint: { index: "Resume_candidateId_fileHash_key" } } } },
           });
         },
-      }),
-      fakeCandidateRepository(),
-      fakeStorage({ delete: async (key: string) => { deletedKey = key; } }),
-      fakeQueue(),
-    );
+      },
+      storage: { delete: async (key: string) => { deletedKey = key; } },
+    });
 
     await expect(
       service.uploadResume("user-1", { name: "resume.pdf", type: "application/pdf", data: PDF_BYTES }),
@@ -134,7 +164,7 @@ describe("ResumeService.uploadResume", () => {
   });
 
   test("stores the resume metadata on success", async () => {
-    const service = new ResumeService(fakeResumeRepository(), fakeCandidateRepository(), fakeStorage(), fakeQueue());
+    const service = buildService();
 
     const resume = await service.uploadResume("user-1", {
       name: "resume.pdf",
@@ -148,12 +178,9 @@ describe("ResumeService.uploadResume", () => {
 
   test("enqueues a resume.parse job for the new resume", async () => {
     let enqueuedData: unknown;
-    const service = new ResumeService(
-      fakeResumeRepository(),
-      fakeCandidateRepository(),
-      fakeStorage(),
-      fakeQueue({ add: async (_name, data) => { enqueuedData = data; return {} as never; } }),
-    );
+    const service = buildService({
+      queue: { add: async (_name, data) => { enqueuedData = data; return {} as never; } },
+    });
 
     const resume = await service.uploadResume("user-1", {
       name: "resume.pdf",
@@ -165,16 +192,13 @@ describe("ResumeService.uploadResume", () => {
   });
 
   test("still returns the created resume if enqueueing fails", async () => {
-    const service = new ResumeService(
-      fakeResumeRepository(),
-      fakeCandidateRepository(),
-      fakeStorage(),
-      fakeQueue({
+    const service = buildService({
+      queue: {
         add: async () => {
           throw new Error("redis is down");
         },
-      }),
-    );
+      },
+    });
 
     const resume = await service.uploadResume("user-1", {
       name: "resume.pdf",
@@ -183,5 +207,50 @@ describe("ResumeService.uploadResume", () => {
     });
 
     expect(resume.id).toBe("resume-1");
+  });
+});
+
+describe("ResumeService.getFileForRecruiter", () => {
+  test("throws when the application does not exist", async () => {
+    const service = buildService({ application: { findById: async () => null } });
+
+    await expect(service.getFileForRecruiter("recruiter-1", "application-1", "resume-1")).rejects.toThrow(
+      "Application not found",
+    );
+  });
+
+  test("throws when the requesting recruiter does not own the job", async () => {
+    const service = buildService();
+
+    await expect(service.getFileForRecruiter("someone-else", "application-1", "resume-1")).rejects.toThrow(
+      "Application not found",
+    );
+  });
+
+  test("throws when the resume does not exist", async () => {
+    const service = buildService({ resume: { findById: async () => null } });
+
+    await expect(service.getFileForRecruiter("recruiter-1", "application-1", "resume-1")).rejects.toThrow(
+      "Resume not found",
+    );
+  });
+
+  test("throws when the resume belongs to a different candidate", async () => {
+    const service = buildService({
+      resume: { findById: async () => ({ id: "resume-1", candidateId: "someone-elses-candidate-id" }) as Resume },
+    });
+
+    await expect(service.getFileForRecruiter("recruiter-1", "application-1", "resume-1")).rejects.toThrow(
+      "Resume not found",
+    );
+  });
+
+  test("returns the file bytes for a resume owned by the applying candidate", async () => {
+    const service = buildService();
+
+    const result = await service.getFileForRecruiter("recruiter-1", "application-1", "resume-1");
+
+    expect(result.bytes).toBe(PDF_BYTES);
+    expect(result.resume.id).toBe("resume-1");
   });
 });

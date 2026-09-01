@@ -582,3 +582,28 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   and the recruiter's interviews list, via a new `useCandidateNames()`
   hook fanning out to the `GET /applications/:id/candidate` endpoint
   per application (no bulk endpoint exists) and caching each result.
+- 2026-09-01 — Phase 5 / Phase 13 — Let a recruiter actually view a
+  candidate's resume file, not just its parsed content. New `GET
+  /applications/:applicationId/candidate/resumes/:resumeId`
+  (`ResumeService.getFileForRecruiter`), scoped through the application
+  relationship like the existing candidate-profile endpoint — 404 for a
+  non-owning recruiter, 403 for a non-recruiter role. Proxies bytes
+  through the backend rather than a presigned S3 URL, to reuse the
+  existing bearer-token auth model without a new CORS dependency on the
+  storage endpoint. Frontend: `ResumeViewerDialog`, listed from a new
+  "Resumes" section in the candidate detail sheet — fetches with the
+  `Authorization` header, renders PDFs inline via an object-URL
+  `<iframe>`, offers a download link for non-PDF files instead of a
+  broken inline preview. Live-verified end to end: uploaded a real PDF
+  fixture as a candidate, applied to a job, fetched it back as the
+  owning recruiter and confirmed it was byte-for-byte identical to the
+  original — both hitting the backend directly and through the Next.js
+  `/api` rewrite the frontend actually uses — then confirmed a
+  different recruiter gets 404 and a candidate gets 403. Also caught
+  and fixed a real gap while testing: `bun --hot` swaps existing route
+  handlers but doesn't register newly-added routes, so the dev server
+  needed a restart before the new endpoint would resolve at all
+  (previously 404'd as an unmatched route, not a business-logic
+  rejection) — worth remembering for any future route addition.
+  Backend: 154/154 tests passing, `bunx tsc --noEmit` clean on both
+  workspaces.
