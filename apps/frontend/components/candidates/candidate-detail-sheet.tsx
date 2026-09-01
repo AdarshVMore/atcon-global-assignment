@@ -18,7 +18,6 @@ import { ApplicationInterviewsPanel } from "@/components/interviews/application-
 import { useCandidateForApplication } from "@/features/candidates/useCandidateProfile";
 import { ApiError } from "@/lib/api/error";
 import type { Application } from "@/types/applications";
-import type { Resume } from "@/types/candidates";
 
 interface CandidateDetailSheetProps {
   application: Application | null;
@@ -30,7 +29,7 @@ export function CandidateDetailSheet({ application, open, onOpenChange }: Candid
   const { data: candidate, isLoading, isError, error } = useCandidateForApplication(
     open ? (application?.id ?? null) : null,
   );
-  const [viewingResume, setViewingResume] = useState<Resume | null>(null);
+  const [viewingResume, setViewingResume] = useState(false);
 
   return (
     <>
@@ -64,28 +63,24 @@ export function CandidateDetailSheet({ application, open, onOpenChange }: Candid
                 name={candidate.user.name}
                 email={candidate.user.email}
                 phone={candidate.phone}
-                resumes={candidate.resumes}
+                resume={candidate.resume}
               />
             )}
 
-            {candidate && candidate.resumes.length > 0 && (
+            {candidate?.resume && (
               <div>
-                <p className="mb-2 text-sm font-medium">Resumes</p>
-                <ul className="flex flex-col gap-1.5">
-                  {candidate.resumes.map((resume) => (
-                    <li key={resume.id} className="flex items-center justify-between gap-2 rounded-lg border p-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm">{resume.originalFileName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded {new Date(resume.uploadedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => setViewingResume(resume)}>
-                        View
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                <p className="mb-2 text-sm font-medium">Resume</p>
+                <div className="flex items-center justify-between gap-2 rounded-lg border p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm">{candidate.resume.originalFileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Applied with this resume, uploaded {new Date(candidate.resume.uploadedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setViewingResume(true)}>
+                    View
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -112,12 +107,12 @@ export function CandidateDetailSheet({ application, open, onOpenChange }: Candid
         </SheetContent>
       </Sheet>
 
-      {application && (
+      {application && candidate?.resume && (
         <ResumeViewerDialog
           applicationId={application.id}
-          resume={viewingResume}
-          open={!!viewingResume}
-          onOpenChange={(isOpen) => !isOpen && setViewingResume(null)}
+          resume={candidate.resume}
+          open={viewingResume}
+          onOpenChange={setViewingResume}
         />
       )}
     </>

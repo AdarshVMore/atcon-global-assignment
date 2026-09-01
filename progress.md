@@ -607,3 +607,15 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   rejection) — worth remembering for any future route addition.
   Backend: 154/154 tests passing, `bunx tsc --noEmit` clean on both
   workspaces.
+- 2026-09-01 — Phase 5 / Phase 13 — Corrected scope on the resume
+  viewer from the previous entry: `getProfileForRecruiter` was
+  returning *all* of a candidate's resumes (`resumes: Resume[]`) when a
+  recruiter should only ever see the one that specific application
+  applied with. Changed to `resume: Resume | null`, sourced from
+  `application.resumeId` instead of `findByCandidateId`.
+  `CandidateProfileView` no longer picks a "most recent parsed" resume
+  out of a list internally — it renders whatever single `resume` it's
+  handed, so each caller supplies the one relevant to its own context.
+  Live-verified: a candidate with two uploaded resumes, applying with
+  only one, confirmed the recruiter's response contains exactly that
+  one. Backend 156/156 passing, both workspaces typecheck clean.

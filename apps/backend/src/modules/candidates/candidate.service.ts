@@ -4,7 +4,7 @@ import { ApplicationRepository } from "../applications/application.repository.ts
 import { ResumeRepository } from "../resumes/resume.repository.ts";
 import { CandidateRepository } from "./candidate.repository.ts";
 import type { UpdateCandidateProfileRequestBody } from "./dto.ts";
-import { toCandidateProfile, type CandidateProfile, type CandidateProfileWithResumes } from "./candidate.types.ts";
+import { toCandidateProfile, type CandidateProfile, type CandidateProfileWithResume } from "./candidate.types.ts";
 import { assertValidPhone } from "./validation.ts";
 
 export class CandidateService {
@@ -44,12 +44,14 @@ export class CandidateService {
   }
 
   /**
-   * A recruiter may view the full profile — including resumes — of a
-   * candidate who applied to one of their own jobs. Access is scoped
-   * through the application relationship rather than a bare candidate id,
-   * so a recruiter can never browse candidates who never applied to them.
+   * A recruiter may view the profile of a candidate who applied to one of
+   * their own jobs — including the resume that application actually used,
+   * not the candidate's full resume history (other applications, other
+   * jobs, aren't this recruiter's to see). Access is scoped through the
+   * application relationship rather than a bare candidate id, so a
+   * recruiter can never browse candidates who never applied to them.
    */
-  async getProfileForRecruiter(recruiterId: string, applicationId: string): Promise<CandidateProfileWithResumes> {
+  async getProfileForRecruiter(recruiterId: string, applicationId: string): Promise<CandidateProfileWithResume> {
     const application = await this.applicationRepository.findById(applicationId);
     if (!application || application.job.recruiterId !== recruiterId) {
       throw new NotFoundError("Application not found");
@@ -60,7 +62,7 @@ export class CandidateService {
       throw new NotFoundError("Candidate not found");
     }
 
-    const resumes = await this.resumeRepository.findByCandidateId(candidate.id);
-    return { ...toCandidateProfile(candidate), resumes };
+    const resume = application.resumeId ? await this.resumeRepository.findById(application.resumeId) : null;
+    return { ...toCandidateProfile(candidate), resume };
   }
 }

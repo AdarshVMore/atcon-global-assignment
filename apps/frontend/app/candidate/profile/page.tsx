@@ -18,6 +18,7 @@ import {
   useUploadResume,
 } from "@/features/candidates/useCandidateProfile";
 import { ApiError } from "@/lib/api/error";
+import { mostRecentParsedResume } from "@/lib/jobRelevance";
 import type { CandidateProfile, ResumeStatus } from "@/types/candidates";
 
 const resumeStatusStyles: Record<ResumeStatus, string> = {
@@ -46,7 +47,7 @@ export default function CandidateProfilePage() {
           name={profile.user.name}
           email={profile.user.email}
           phone={profile.phone}
-          resumes={resumes ?? []}
+          resume={mostRecentParsedResume(resumes ?? []) ?? null}
         />
       )}
 

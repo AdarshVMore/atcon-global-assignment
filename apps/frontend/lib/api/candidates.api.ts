@@ -1,7 +1,7 @@
 import { API_BASE_URL, apiClient } from "./client";
 import { ApiError } from "./error";
 import { getStoredToken } from "@/lib/auth/token";
-import type { CandidateProfile, CandidateProfileWithResumes, Resume } from "@/types/candidates";
+import type { CandidateProfile, CandidateProfileWithResume, Resume } from "@/types/candidates";
 
 export const candidatesApi = {
   getProfile: () => apiClient.get<CandidateProfile>("/candidates/me"),
@@ -13,7 +13,7 @@ export const candidatesApi = {
     return apiClient.upload<Resume>("/candidates/me/resumes", formData);
   },
   getForApplication: (applicationId: string) =>
-    apiClient.get<CandidateProfileWithResumes>(`/applications/${applicationId}/candidate`),
+    apiClient.get<CandidateProfileWithResume>(`/applications/${applicationId}/candidate`),
   // Binary response — can't go through apiClient's JSON-only request().
   getResumeFile: async (applicationId: string, resumeId: string): Promise<Blob> => {
     const token = getStoredToken();

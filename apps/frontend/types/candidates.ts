@@ -10,8 +10,9 @@ export interface CandidateProfile {
   };
 }
 
-export interface CandidateProfileWithResumes extends CandidateProfile {
-  resumes: Resume[];
+export interface CandidateProfileWithResume extends CandidateProfile {
+  /** The resume the candidate actually applied with — not their full history. */
+  resume: Resume | null;
 }
 
 export type ResumeStatus = "UPLOADED" | "PROCESSING" | "PARSED" | "FAILED";

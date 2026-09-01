@@ -550,17 +550,27 @@ faked:
   row appears (both role's interview lists, the application detail
   page, and the interviews panel used inside the candidate detail
   sheet).
-- **Resume file viewer.** `ResumeViewerDialog`, listed under a new
-  "Resumes" section in the candidate detail sheet — a recruiter can now
-  actually view the resume file a candidate applied with, not just its
-  parsed content. Backed by a new backend endpoint (see
+- **Resume file viewer.** `ResumeViewerDialog`, opened from a "Resume"
+  row in the candidate detail sheet — a recruiter can now actually view
+  the resume file a candidate applied with, not just its parsed
+  content. Deliberately scoped to *the one resume that specific
+  application used*, not the candidate's full resume history — a
+  candidate can have several resumes across different applications, and
+  a recruiter reviewing one application has no business seeing the
+  others. `CandidateProfileView` was reshaped to match: it now renders
+  from a single `resume` prop instead of picking one out of a list
+  itself, so each caller decides which resume is relevant to its own
+  context (the applied-with one here; "most recently parsed" on the
+  candidate's own profile page, where there's no application to scope
+  by). Backed by a new backend endpoint (see
   [phases/05-candidate-and-resume-management.md](../phases/05-candidate-and-resume-management.md)),
   fetched with the `Authorization` header and rendered as an object URL
   in an `<iframe>` for PDFs; non-PDF resumes get a download link
   instead, since browsers can't render `.docx` inline. Live-verified
-  end to end with a real uploaded PDF, byte-for-byte — the one thing in
-  this phase that *was* actually proven live rather than typecheck-only,
-  because it was cheap to script with `curl`.
+  end to end with a real uploaded PDF, byte-for-byte, including the
+  scoping itself — a candidate with two uploaded resumes applying with
+  only one confirmed the recruiter's response contains exactly that
+  one, not both.
 
 **Verification status — different from every phase above this one.**
 Phases 0-12 were each live-tested in a real browser before being marked

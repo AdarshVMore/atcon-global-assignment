@@ -13,20 +13,16 @@ function initials(name: string): string {
     .join("");
 }
 
-function mostRecentParsedResume(resumes: Resume[]): Resume | null {
-  return resumes.find((resume) => resume.status === "PARSED" && resume.parsedData?.structured) ?? null;
-}
-
 interface CandidateProfileViewProps {
   name: string;
   email: string;
   phone: string | null;
-  resumes: Resume[];
+  /** The one resume relevant to this context (e.g. the one an application used) — not a list to pick from. */
+  resume: Resume | null;
 }
 
-export function CandidateProfileView({ name, email, phone, resumes }: CandidateProfileViewProps) {
-  const resume = mostRecentParsedResume(resumes);
-  const structured = resume?.parsedData?.structured ?? null;
+export function CandidateProfileView({ name, email, phone, resume }: CandidateProfileViewProps) {
+  const structured = resume?.status === "PARSED" ? (resume.parsedData?.structured ?? null) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,10 +57,13 @@ export function CandidateProfileView({ name, email, phone, resumes }: CandidateP
         </CardContent>
       </Card>
 
-      {!resume && (
+      {!structured && (
         <p className="text-sm text-muted-foreground">
-          No parsed resume on file yet — skills, experience and education will show up here once one&apos;s uploaded
-          and processed.
+          {resume?.status === "FAILED"
+            ? "This resume couldn't be parsed — skills, experience and education aren't available for it."
+            : resume
+              ? "This resume hasn't finished parsing yet — skills, experience and education will show up here once it has."
+              : "No parsed resume on file yet — skills, experience and education will show up here once one's uploaded and processed."}
         </p>
       )}
 

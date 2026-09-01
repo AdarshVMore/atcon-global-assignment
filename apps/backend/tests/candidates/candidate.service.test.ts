@@ -42,6 +42,7 @@ function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {
         id: "application-1",
         candidateId: "candidate-1",
         jobId: "job-1",
+        resumeId: "resume-1",
         job: { id: "job-1", title: "Backend Engineer", recruiterId: "recruiter-1", status: "PUBLISHED" },
       }) as ApplicationWithRelations,
     ...overrides,
@@ -50,7 +51,7 @@ function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {
 
 function fakeResumeRepository(overrides: Partial<ResumeRepository> = {}): ResumeRepository {
   return {
-    findByCandidateId: async () => [] as Resume[],
+    findById: async () => ({ id: "resume-1", candidateId: "candidate-1" }) as Resume,
     ...overrides,
   } as ResumeRepository;
 }
@@ -134,14 +135,40 @@ describe("CandidateService.getProfileForRecruiter", () => {
     );
   });
 
-  test("returns the candidate's profile and resumes for the owning recruiter", async () => {
-    const resumes = [{ id: "resume-1", candidateId: "candidate-1" } as Resume];
-    const service = buildService({ resume: { findByCandidateId: async () => resumes } });
+  test("returns the candidate's profile and the resume that application used", async () => {
+    const resume = { id: "resume-1", candidateId: "candidate-1" } as Resume;
+    const service = buildService({ resume: { findById: async () => resume } });
 
     const result = await service.getProfileForRecruiter("recruiter-1", "application-1");
 
     expect(result.id).toBe("candidate-1");
     expect(result.user.name).toBe("Chris Candidate");
-    expect(result.resumes).toEqual(resumes);
+    expect(result.resume).toEqual(resume);
+  });
+
+  test("does not return the candidate's other resumes, only the one this application used", async () => {
+    const findById = (async (id: string) => {
+      if (id !== "resume-1") throw new Error(`unexpectedly fetched resume ${id}`);
+      return { id: "resume-1", candidateId: "candidate-1" } as Resume;
+    }) as ResumeRepository["findById"];
+    const service = buildService({ resume: { findById } });
+
+    const result = await service.getProfileForRecruiter("recruiter-1", "application-1");
+
+    expect(result.resume?.id).toBe("resume-1");
+  });
+
+  test("returns a null resume when the application has none set", async () => {
+    const service = buildService({ application: { findById: async () => ({
+      id: "application-1",
+      candidateId: "candidate-1",
+      jobId: "job-1",
+      resumeId: null,
+      job: { id: "job-1", title: "Backend Engineer", recruiterId: "recruiter-1", status: "PUBLISHED" },
+    }) as ApplicationWithRelations } });
+
+    const result = await service.getProfileForRecruiter("recruiter-1", "application-1");
+
+    expect(result.resume).toBeNull();
   });
 });
