@@ -526,3 +526,32 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   real local Postgres — no live OpenRouter key available to verify the
   embedding call itself end-to-end, same documented gap as the existing
   LLM path).
+- 2026-09-01 — Phase 6 — Committed pre-existing uncommitted work found
+  in the working tree (not written this session, but reviewed,
+  typechecked, and tested before committing): a new
+  `GET /applications/:applicationId/candidate` endpoint
+  (`CandidateService.getProfileForRecruiter`, scoped through the
+  application relationship) plus its test coverage. Added a note to
+  phases/06-applications.md documenting it as a later addition.
+- 2026-09-01 — docs/frontend-phases.md Phase 13 — Committed and
+  documented four pre-existing uncommitted frontend features: a
+  drag-and-drop pipeline board (`@dnd-kit/core`, replacing the Phase 7
+  per-card dropdown) with a candidate detail sheet showing the
+  candidate's real profile/resume (via the new backend endpoint above)
+  instead of just an id, recharts bar charts on the recruiter dashboard,
+  a client-side "relevant to you" job sort for candidates, and an
+  interview detail dialog with scorecard breakdown. Resolves several
+  gaps Phase 6/7/9 had honestly flagged `[!]` as not buildable at the
+  time. Verified by `bunx tsc --noEmit` (clean) only — not re-verified
+  live in a browser this session, unlike every phase before it; flagged
+  explicitly in the Phase 13 addendum rather than silently checked off.
+  Also updated the root README (API table, env vars, module-layout note,
+  two now-stale tradeoff claims) and `docs/api.md` for the new endpoint.
+- 2026-09-01 — Split all of the above into 9 separate commits by actual
+  feature boundary (not by file-change chronology) using `git add -p`
+  where a single file's diff spanned two unrelated features
+  (`schema.prisma`, `package.json`) — see `git log` for the breakdown.
+  Left frontend/backend changes whose intent wasn't clear from the diff
+  alone uncommitted only where genuinely ambiguous; none were, so
+  everything in the working tree at session start is now committed
+  except `.vscode/` (editor-local, left alone).

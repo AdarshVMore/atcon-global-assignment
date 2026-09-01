@@ -73,6 +73,17 @@ across jobs they own, optionally narrowed with `?jobId=`) rather than
 separate recruiter/candidate routes — same pattern as `GET /jobs` from
 Phase 4.
 
+**Later addition — `GET /applications/:applicationId/candidate`.**
+Added after this phase's original live-verification pass, once the
+frontend's Candidates/Pipeline work (Phase 13 in
+[docs/frontend-phases.md](../docs/frontend-phases.md)) needed a
+candidate's actual profile and resumes, not just their id. Lives in
+`CandidateService.getProfileForRecruiter`, not here — access is scoped
+through the application relationship (must belong to a job this
+recruiter owns) the same way every other per-application endpoint in
+this file is, so it was a natural fit for that existing authorization
+pattern rather than a new one.
+
 ### Verification
 
 - [x] Candidate can apply (verified live, including the initial stage

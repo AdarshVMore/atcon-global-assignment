@@ -131,11 +131,15 @@ response), plus `dto.ts`/`validation.ts` for request bodies.
 `resumes/` is its own module, separate from `candidates/` — resume
 upload, storage, text extraction, and LLM-backed structured extraction
 all live there; a candidate's core profile (phone, etc.) stays in
-`candidates/`. `ranking/` holds two independent units
-(`deterministicScore.ts`, `candidateJobMatcher.ts`) rather than one
-merged `ranking.service.ts`, since they're used independently (the
-deterministic score always runs; the LLM matcher only when
-`OPENROUTER_API_KEY` is set).
+`candidates/`. `ranking/` holds independent units rather than one
+merged `ranking.service.ts`, since each runs under different
+conditions: `deterministicScore.ts` (keyword overlap) always runs;
+`embeddingClient.ts` + `cosineSimilarity.ts` (embedding similarity, via
+OpenRouter's `/embeddings` endpoint) run when `OPENROUTER_API_KEY` is
+set and get blended with the deterministic score
+(`0.4 * deterministic + 0.6 * embeddingSimilarity`); `candidateJobMatcher.ts`
+(the LLM chat call) also only runs with a key, and only ever supplies a
+human-readable rationale — its own score isn't used for anything.
 
 ## Local Setup
 
@@ -199,7 +203,11 @@ list. Notes on the ones that aren't self-explanatory:
   fallback (see [Known Limitations](#known-limitations)); with it, both
   get LLM-backed enrichment on top.
 - `OPENROUTER_MODEL` — defaults to `openai/gpt-4o-mini`; shared by resume
-  parsing and ranking rather than having a separate setting for each.
+  parsing and ranking's rationale text rather than having a separate
+  setting for each.
+- `OPENROUTER_EMBEDDING_MODEL` — defaults to `openai/text-embedding-3-small`;
+  used for ranking's embedding-similarity signal, only called when
+  `OPENROUTER_API_KEY` is set.
 
 ## API Overview
 
@@ -230,6 +238,7 @@ POST   /jobs/:jobId/applications                apply to a published job        
 GET    /applications                            list (own, or across owned jobs; ?jobId=)
 GET    /applications/:applicationId             get one application
 GET    /applications/:applicationId/history      stage-history for one application
+GET    /applications/:applicationId/candidate    candidate's profile + resumes              (recruiter, owner)
 PATCH  /applications/:applicationId/stage        move to another stage                      (recruiter, owner)
 
 GET    /applications/:applicationId/interviews   list interviews for an application
@@ -282,20 +291,26 @@ Documented in more detail in each phase's own file under
   the codebase (`ApplicationService`/`InterviewService` depend on it to
   fire notifications). Every other cross-module dependency is
   repository-to-repository.
-- **Notification delivery isn't redelivery-idempotent.** A rare BullMQ
-  redelivery could double-create an in-app notification — accepted as a
-  low-stakes tradeoff (annoying, never state-corrupting) rather than
-  building real dedup for it.
+- **Notification delivery is redelivery-idempotent.** `Notification` has
+  a unique `sourceJobId` (the triggering BullMQ job's own stable id) and
+  a `processedAt` flag; the worker upserts on it instead of inserting,
+  so a redelivered job can't double-create a row or resend the email.
 
 ## Known Limitations
 
 - **No OpenRouter API key was available while building this** (see
   [phases/09-resume-parser-worker.md](phases/09-resume-parser-worker.md)
   and [phases/10-candidate-ranking.md](phases/10-candidate-ranking.md)).
-  Both the resume-parsing LLM call and the ranking LLM call are real,
-  complete code, unit-tested against a fake OpenAI client — but the
-  actual network call to OpenRouter has not been exercised live. Add a
-  key to `apps/backend/.env` to do that.
+  The resume-parsing LLM call, the ranking embedding call, and the
+  ranking rationale call are all real, complete code, unit-tested
+  against fakes — but none of the three actual network calls to
+  OpenRouter have been exercised live. Add a key to
+  `apps/backend/.env` to do that.
+- **resume.parse and application.rank are independent queues with no
+  ordering guarantee** — a candidate can apply moments after uploading
+  a resume, before parsing finishes. The ranking worker checks the
+  resume's status and retries (via the queue's normal backoff) until
+  parsing is done, rather than scoring against an empty resume.
 - **No SMTP/email provider is configured.** `EmailSender` is a real
   interface; `ConsoleEmailSender` (the only implementation right now)
   logs what would be sent instead of sending it. Swapping in a real

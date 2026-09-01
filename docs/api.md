@@ -221,6 +221,17 @@ Visible to the owning candidate or the owning recruiter.
 200 { "history": ApplicationStageHistory[] }
 ```
 
+### `GET /applications/:applicationId/candidate` (recruiter, owner)
+
+The candidate's full profile plus their resumes — access is scoped
+through the application (must belong to a job this recruiter owns),
+not a bare candidate id, so a recruiter can't browse candidates who
+never applied to one of their jobs.
+
+```json
+200 { "id": string, "phone": string | null, "user": { "id": string, "email": string, "name": string }, "resumes": Resume[] }
+```
+
 ### `PATCH /applications/:applicationId/stage` (recruiter, owner)
 
 ```json

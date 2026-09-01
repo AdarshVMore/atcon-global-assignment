@@ -217,7 +217,9 @@ code touched.
 - [x] Display application count.
 - [x] Display interviews. (Interview counts by status.)
 - [x] Display time-to-hire.
-- [x] Display pipeline health. (Stale-application count; applications by stage.)
+- [x] Display pipeline health. (Stale-application count; applications by
+      stage — plain lists originally, replaced with recharts bar charts
+      in Phase 13.)
 - [!] Display recent activity. (No backend endpoint for this — flagged in
       the earlier API inspection, not built here rather than faked.)
 - [!] Display upcoming interviews. (Same — no list-scoped-by-date endpoint
@@ -257,22 +259,39 @@ code touched.
 
 **Built against the real constraint flagged in Phase 0:** `GET /applications`
 never includes candidate name/email/phone/resume — only `candidateId`. There
-is no `GET /candidates/:id` either. So this page is honestly an applications
-view, not a candidate directory, and says so in its own description text.
+is no `GET /candidates/:id` either. So this page was honestly an applications
+view, not a candidate directory, and said so in its own description text.
 
-- [!] Candidate search / filters. (Only `?jobId=` exists server-side; no
-      name/skill search is possible without candidate identity.)
+**Partially resolved in Phase 13:** a new backend endpoint,
+`GET /applications/:applicationId/candidate`, exposes a candidate's real
+profile — but still only reachable *through* a specific application, not
+as a standalone candidate lookup by id. So the list itself is still an
+applications list (still no name/email/skill visible in the row before
+clicking in), it's opening one that now shows the real person.
+
+- [!] Candidate search / filters. (Still only `?jobId=` exists server-side
+      for the list itself; no name/skill search across candidates is
+      possible without a real candidate-directory endpoint. Once inside a
+      candidate's detail sheet their name/skills are real, but you can't
+      search *by* them.)
 - [x] Candidate result cards. (Shows candidate id (short), job, stage,
       ranking score — the real fields available.)
 - [x] Candidate match score. (`rankingScore` from the backend's ranking
       worker.)
-- [!] Candidate profile / experience / skills. (Not buildable — no endpoint
-      returns this. Not faked.)
-- [!] Resume section. (`Resume.fileUrl` is a raw storage key, not a
-      fetchable URL — flagged in Phase 0. Not shown as a broken link.)
+- [x] Candidate profile / experience / skills. (Resolved in Phase 13 — a
+      new backend endpoint, `GET /applications/:applicationId/candidate`,
+      returns the candidate's profile plus resumes; `CandidateProfileView`
+      renders name/skills/education/work history from the most recently
+      parsed resume.)
+- [x] Resume section. (Still no fetchable file URL for the raw PDF/docx
+      itself — `Resume.fileUrl` stays a storage key, not shown as a link —
+      but the *parsed content* (skills, education, experience) is now
+      rendered via `CandidateProfileView`, which is what this item was
+      really asking for.)
 - [x] Application information. (Stage, ranking, stage history.)
-- [x] Candidate drawer. (Built as a Dialog rather than a slide-in drawer —
-      faster to wire up, same effect.)
+- [x] Candidate drawer. (Rebuilt in Phase 13 as a `Sheet`
+      (`CandidateDetailSheet`) rather than the `Dialog` this phase
+      originally used, once it needed to hold a full profile view.)
 - [x] Candidate actions. (Interview scheduling and management now live
       inside this dialog — see Phase 8.)
 - [x] Loading states.
@@ -290,14 +309,15 @@ view, not a candidate directory, and says so in its own description text.
 - [x] Candidate match score.
 - [x] Stage filtering. (Columns themselves are the filter — no separate
       filter control added given the time budget.)
-- [-] Candidate drawer. (Reused from Phase 6 for the Candidates page;
-      not wired into this board specifically — cards show score/id inline
-      instead.)
-- [x] Move candidate between stages. (A dropdown per card, not drag-and-drop
-      — deliberately, per this phase's own instruction below. Options are
-      computed client-side to match the backend's real transition rule:
-      advance to the immediate next stage by order, or jump to any terminal
-      stage.)
+- [x] Candidate drawer. (Wired into this board in Phase 13 — clicking a
+      card opens the same `CandidateDetailSheet` used on the Candidates
+      page.)
+- [x] Move candidate between stages. (Rebuilt in Phase 13 as real
+      drag-and-drop (`@dnd-kit/core`) — was a per-card dropdown before.
+      Valid drop targets are still computed client-side against the same
+      rule as before (immediate next stage by order, or any terminal
+      stage) and invalid drops are rejected before the API call; the
+      backend remains the real enforcement point either way.)
 - [x] Connect stage mutation to backend. (Real `PATCH
       /applications/:id/stage` — the backend enforces the transition rule
       regardless of what the client offers.)
@@ -311,9 +331,13 @@ view, not a candidate directory, and says so in its own description text.
       viewport specifically — horizontal scroll should degrade reasonably
       but wasn't screenshotted at a mobile width given the time budget.)
 
-Confirmed live: no drag-and-drop was built, and the dropdown only ever
-calls the real backend mutation — nothing here simulates a transition
-client-side.
+Originally confirmed live with the per-card dropdown, which never
+simulated a transition client-side. Superseded by the Phase 13
+drag-and-drop rebuild (`KanbanBoard`), which behaves differently on
+purpose — it moves the card optimistically on drop, then rolls back if
+the real `PATCH /applications/:id/stage` call rejects it (see
+`useKanbanMoveStage`). Verified by typecheck/build; not re-run live in
+a browser this session — see the Phase 13 addendum.
 
 ---
 
@@ -328,8 +352,10 @@ merges and sorts client-side. Real data, just aggregated rather than
 server-aggregated.
 
 - [x] Interview list. (`/recruiter/interviews`, aggregated as above.)
-- [x] Interview details. (Inline on each row/card — no separate detail
-      route given the time budget.)
+- [x] Interview details. (Was inline-only on each row/card; Phase 13 added
+      a real detail dialog — `InterviewDetailDialog` — showing the
+      scorecard breakdown once submitted, wired into every place an
+      interview row appears.)
 - [x] Schedule interview. (From the Candidates dialog — that's where a
       recruiter picks *which* application, which an application-less
       global list can't do.)
@@ -353,7 +379,11 @@ server-aggregated.
 - [x] Candidate home. (Application/interview counts, link to browse jobs.)
 - [x] Job discovery. (`/candidate/jobs`, published jobs only, per the
       backend's own role-based `GET /jobs` behavior.)
-- [x] Job search. (Client-side title filter, same constraint as Phase 5.)
+- [x] Job search. (Client-side title filter, same constraint as Phase 5.
+      Phase 13 added a "Relevant to you" sort, scoring each job against
+      the candidate's most recently parsed resume — client-side keyword
+      overlap, not the backend's real ranking, which only exists for
+      applications already submitted.)
 - [x] Job detail.
 - [x] Apply flow. (Pick one of your own uploaded resumes, submit — matches
       the backend's actual requirement that `resumeId` be one of the
@@ -367,9 +397,10 @@ server-aggregated.
 - [x] Resume upload.
 - [x] Resume processing state. (Polls while `UPLOADED`/`PROCESSING`, stops
       once settled.)
-- [!] Resume parsing result. (`Resume.parsedData` isn't surfaced in the UI
-      — the status badge shows PARSED/FAILED, but the structured skills/
-      experience data itself isn't rendered anywhere yet.)
+- [x] Resume parsing result. (Resolved in Phase 13 — the profile page now
+      renders `CandidateProfileView` from the most recently parsed
+      resume's structured data (skills, education, work experience), the
+      same component the recruiter's candidate detail sheet uses.)
 - [x] Candidate interviews. (Same `useAllInterviews()` aggregation as
       Phase 8, scoped to the candidate's own applications by the backend's
       own role branching on `GET /applications`.)
@@ -480,3 +511,53 @@ list was true by construction rather than needing a separate review.
       guard and a Base UI `nativeButton` warning, both caught via browser
       console during this pass.)
 - [x] Update documentation. (This file.)
+
+---
+
+# Phase 13 — Candidate Detail, Pipeline Board, Dashboard Charts, Job Relevance
+
+Four features added after Phase 12's live-verification pass, resolving
+several gaps that phase had honestly flagged as blocked rather than
+faked:
+
+- **Candidate detail.** New backend endpoint, `GET
+  /applications/:applicationId/candidate` (scoped through the
+  application so a recruiter can only reach candidates who applied to
+  one of their own jobs), plus `CandidateProfileView` (name, skills,
+  education, work history from the most recent parsed resume) and
+  `CandidateDetailSheet`. Used on the recruiter's Candidates page,
+  Pipeline board, and the candidate's own Profile page. Resolves the
+  `[!]` items Phase 6 had flagged as not buildable.
+- **Pipeline board.** Rebuilt as a real drag-and-drop Kanban board
+  (`@dnd-kit/core`) replacing the per-card dropdown from Phase 7 —
+  optimistic move on drop, rolled back if the backend rejects it
+  (`useKanbanMoveStage`). Invalid drop targets are computed client-side
+  against the same rule the dropdown used (next stage by order, or any
+  terminal stage) and are visually rejected before the API call, which
+  remains the real enforcement point.
+- **Dashboard charts.** The applications-by-stage and
+  interviews-by-status lists on the recruiter overview became recharts
+  bar charts, sharing a small dataviz color palette added to
+  `globals.css`.
+- **Job relevance.** Candidate's job-browsing list gained a "Relevant to
+  you" sort — client-side keyword overlap between each job and the
+  candidate's most recently parsed resume (`lib/jobRelevance.ts`).
+  Separate from and much cruder than the backend's real ranking, which
+  only exists once a candidate has actually applied.
+- **Interview detail.** `InterviewDetailDialog` — clicking any interview
+  row now opens a dialog with the scorecard breakdown (once submitted)
+  instead of just a status badge, wired into every place an interview
+  row appears (both role's interview lists, the application detail
+  page, and the interviews panel used inside the candidate detail
+  sheet).
+
+**Verification status — different from every phase above this one.**
+Phases 0-12 were each live-tested in a real browser before being marked
+complete. This phase was not: `bunx tsc --noEmit` is clean for the whole
+frontend, and the backend endpoint it depends on has real service-level
+test coverage (`tests/candidates/candidate.service.test.ts`) — but
+nobody clicked through the drag-and-drop board, the candidate detail
+sheet, the charts, or the interview dialog in an actual running
+instance this session. Type-correct is not the same claim as
+feature-correct; flagging that gap explicitly rather than checking a
+box that wasn't actually earned.
