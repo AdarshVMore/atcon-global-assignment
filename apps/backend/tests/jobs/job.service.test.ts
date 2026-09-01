@@ -15,6 +15,7 @@ function buildJob(overrides: Partial<JobWithStages> = {}): JobWithStages {
     description: "Build things",
     requirements: "TypeScript",
     status: JobStatus.DRAFT,
+    embedding: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

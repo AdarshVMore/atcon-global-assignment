@@ -88,6 +88,11 @@ model Job {
   description  String
   requirements String
   status       JobStatus @default(DRAFT)
+  /// Cached embedding of title+description+requirements, used for
+  /// ranking's embedding-similarity signal. Empty until first computed;
+  /// cleared whenever title/description/requirements change so ranking
+  /// recomputes it against the current text.
+  embedding    Float[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -168,6 +173,11 @@ model Resume {
   status           ResumeStatus @default(UPLOADED)
   parsedData       Json?
   parseError       String?
+  /// Cached embedding of the parsed resume text, used for ranking's
+  /// embedding-similarity signal. Resumes are immutable once uploaded
+  /// (a new upload is a new Resume row), so unlike Job this never needs
+  /// invalidating once computed.
+  embedding        Float[]
   uploadedAt       DateTime     @default(now())
   parsedAt         DateTime?
 

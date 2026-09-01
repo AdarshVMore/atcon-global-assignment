@@ -65,7 +65,19 @@ export class JobRepository {
   }
 
   update(id: string, data: UpdateJobInput): Promise<JobWithStages> {
-    return prisma.job.update({ where: { id }, data, include: stagesOrderedByOrder });
+    const contentChanged = data.title !== undefined || data.description !== undefined || data.requirements !== undefined;
+    return prisma.job.update({
+      where: { id },
+      // The cached ranking embedding reflects title+description+requirements
+      // — invalidate it whenever any of those change so ranking recomputes
+      // it against the current text instead of matching against stale text.
+      data: contentChanged ? { ...data, embedding: [] } : data,
+      include: stagesOrderedByOrder,
+    });
+  }
+
+  updateEmbedding(id: string, embedding: number[]): Promise<JobWithStages> {
+    return prisma.job.update({ where: { id }, data: { embedding }, include: stagesOrderedByOrder });
   }
 
   addStage(jobId: string, stage: AddStageInput): Promise<JobStage> {

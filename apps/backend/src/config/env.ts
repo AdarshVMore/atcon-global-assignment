@@ -13,6 +13,7 @@ export interface AppConfig {
   /** Empty when unset — LLM-dependent features degrade gracefully rather than requiring it at startup. */
   openRouterApiKey: string;
   openRouterModel: string;
+  openRouterEmbeddingModel: string;
 }
 
 function requireEnv(name: string): string {
@@ -37,4 +38,5 @@ export const config: AppConfig = {
   s3SecretAccessKey: requireEnv("S3_SECRET_ACCESS_KEY"),
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
   openRouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
+  openRouterEmbeddingModel: process.env.OPENROUTER_EMBEDDING_MODEL || "openai/text-embedding-3-small",
 };

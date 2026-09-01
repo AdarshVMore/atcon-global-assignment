@@ -62,23 +62,42 @@ second knob for the same underlying concern (cost-conscious model
 choice) with no stated need for the two features to ever use different
 models.
 
-**Deterministic score is always computed; the LLM only replaces it,
-never substitutes for it being computed.** `computeDeterministicScore`
-runs unconditionally. If `OPENROUTER_API_KEY` is set, the LLM's score
-becomes `Application.rankingScore` (a semantic read is generally better
-than naive keyword overlap when available) — but the deterministic
-result is still stored alongside it in `rankingExplanation`, so the
-signal isn't lost. If ranking a resume that hasn't been parsed yet
-(the two async pipelines are independent, so a race is possible in
-principle, though unlikely — candidates usually upload well before
-applying), it degrades to an empty candidate signal → a low/zero score,
-not a crash.
+**Deterministic score is always computed.** `computeDeterministicScore`
+runs unconditionally, LLM/embeddings available or not — the baseline
+the architecture doc calls "sufficient."
 
-**Once an LLM call is attempted, its failure fails the whole job** —
-same simplification as Phase 9, for the same reason: retrying the
-cheap deterministic computation alongside the LLM call is harmless, and
-preserving partial state between BullMQ attempts is more complexity
-than this warrants.
+**Revised: deterministic + embedding blend, LLM for rationale only.**
+The original design let the LLM's chat-completion score fully replace
+the deterministic one whenever an API key was configured. Revisited
+(see [architecture/ranking.md](../architecture/ranking.md) for the
+full reasoning) to match how real ATSs typically score matches:
+embedding similarity (job text vs. resume text, via OpenRouter's
+`/embeddings` endpoint) is now blended with the deterministic score
+(`0.4 * deterministic + 0.6 * embeddingSimilarity`), and the LLM chat
+call supplies only `explanation.llmReasoning`, a human-readable
+rationale — its score is no longer used for anything. Both
+`Job.embedding` and `Resume.embedding` are cached (`Float[]` columns)
+rather than recomputed on every ranking; `Resume.embedding` is
+permanently valid once set (resumes are immutable), `Job.embedding` is
+cleared back to `[]` by `JobRepository.update()` whenever
+title/description/requirements change.
+
+**The race condition is now actually handled, not just noted as
+unlikely.** The two async pipelines (`resume.parse`, `application.rank`)
+are genuinely independent queues with no ordering guarantee — ranking
+could run before parsing finished, scoring against an empty candidate
+signal. The worker now checks `Resume.status` before scoring: not yet
+`PARSED`/`FAILED` throws to let BullMQ's retry/backoff wait for parsing,
+instead of persisting a false near-zero score. `FAILED` is a legitimate
+terminal state and ranks with whatever's available.
+
+**An LLM rationale failure degrades gracefully instead of failing the
+whole job.** Different from Phase 9's structured-extraction call, where
+a failure means there's genuinely no data to store — here the LLM only
+supplies flavor text on top of an otherwise-complete deterministic+
+embedding score, so a failed rationale call is caught, logged, and
+stored as `llmReasoning: null` rather than losing a good score to a
+retry loop over commentary.
 
 ### Verification
 

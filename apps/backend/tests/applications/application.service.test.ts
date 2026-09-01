@@ -28,6 +28,7 @@ function buildJob(overrides: Partial<JobWithStages> = {}): JobWithStages {
     description: "x",
     requirements: "x",
     status: JobStatus.PUBLISHED,
+    embedding: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -64,6 +65,7 @@ function buildResume(overrides: Partial<Resume> = {}): Resume {
     status: "UPLOADED" as never,
     parsedData: null,
     parseError: null,
+    embedding: [],
     uploadedAt: new Date(),
     parsedAt: null,
     ...overrides,

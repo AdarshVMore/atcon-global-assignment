@@ -35,4 +35,8 @@ export class ResumeRepository {
   updateStatus(id: string, input: UpdateResumeStatusInput): Promise<Resume> {
     return prisma.resume.update({ where: { id }, data: input });
   }
+
+  updateEmbedding(id: string, embedding: number[]): Promise<Resume> {
+    return prisma.resume.update({ where: { id }, data: { embedding } });
+  }
 }

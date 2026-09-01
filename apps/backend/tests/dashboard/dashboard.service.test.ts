@@ -15,6 +15,7 @@ function buildJob(overrides: Partial<JobWithStages> = {}): JobWithStages {
     description: "x",
     requirements: "x",
     status: JobStatus.PUBLISHED,
+    embedding: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     stages: [

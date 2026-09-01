@@ -20,6 +20,7 @@ function buildResume(overrides: Partial<Resume> = {}): Resume {
     status: ResumeStatus.UPLOADED,
     parsedData: null,
     parseError: null,
+    embedding: [],
     uploadedAt: new Date(),
     parsedAt: null,
     ...overrides,

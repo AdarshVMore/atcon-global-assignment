@@ -492,3 +492,37 @@ Format: `- YYYY-MM-DD — Phase N — <what was done>`
   old one. Re-verified after the restructure: `bunx tsc --noEmit`
   clean, 125/125 `bun test` passing, and a live `bun run start`/`bun
   run worker`/login smoke test all succeeded unchanged.
+- 2026-09-01 — Phase 10 — Fixed the resume.parse/application.rank race
+  condition: the ranking worker now checks `Resume.status` before
+  scoring and throws (letting BullMQ retry/backoff) if parsing hasn't
+  finished, instead of silently ranking against an empty resume. Added
+  retry-path test coverage and updated the phase's Architecture Note,
+  which had previously called the race "possible in principle, unlikely."
+- 2026-09-01 — Phase 12 — Fixed notification-worker idempotency:
+  `notification.send` had no redelivery guard (the `Notification` row
+  didn't exist until the worker created it, so there was nothing to
+  check against), meaning a rare BullMQ redelivery could duplicate an
+  in-app notification and resend the email. Added `sourceJobId`
+  (unique, the BullMQ job's own stable id) and `processedAt` to
+  `Notification` via migration `20260901024641_notification_idempotency`
+  (backfilled existing rows with a synthetic `legacy-<id>` key), and
+  switched the worker to upsert instead of insert. Corrected Phase 12's
+  Architecture Note, which had documented the gap as an accepted
+  tradeoff.
+- 2026-09-01 — Phase 10 — Reworked candidate ranking from "LLM score
+  wins outright when configured" to a deterministic + embedding
+  similarity blend (`0.4 * deterministic + 0.6 * embeddingSimilarity`),
+  matching how real ATSs typically score matches — the LLM chat call
+  now supplies only a rationale string (`explanation.llmReasoning`),
+  degrading gracefully on failure instead of failing the whole ranking
+  job. Added `EmbeddingClient` (OpenRouter's `/embeddings` endpoint) and
+  `cosineSimilarity()`, cached embeddings on `Job.embedding` /
+  `Resume.embedding` (`Float[]`, migration
+  `20260901025939_ranking_embeddings`), with `JobRepository.update()`
+  clearing the cached embedding whenever title/description/requirements
+  change. Updated `architecture/ranking.md` and the phase 10 file per
+  the Architectural Changes process. Verified: `bunx tsc --noEmit`
+  clean, 139/139 `bun test` passing (migrations applied against the
+  real local Postgres — no live OpenRouter key available to verify the
+  embedding call itself end-to-end, same documented gap as the existing
+  LLM path).
