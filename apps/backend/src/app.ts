@@ -44,10 +44,12 @@ export function buildRoutes() {
   const jobController = new JobController(jobService);
 
   const candidateRepository = new CandidateRepository();
-  const candidateService = new CandidateService(candidateRepository);
+  const resumeRepository = new ResumeRepository();
+  const applicationRepository = new ApplicationRepository();
+
+  const candidateService = new CandidateService(candidateRepository, applicationRepository, resumeRepository);
   const candidateController = new CandidateController(candidateService);
 
-  const resumeRepository = new ResumeRepository();
   const resumeStorage = new ResumeStorage();
   const resumeService = new ResumeService(resumeRepository, candidateRepository, resumeStorage, resumeParseQueue);
   const resumeController = new ResumeController(resumeService);
@@ -56,7 +58,6 @@ export function buildRoutes() {
   const notificationService = new NotificationService(notificationRepository, notificationSendQueue);
   const notificationController = new NotificationController(notificationService);
 
-  const applicationRepository = new ApplicationRepository();
   const applicationService = new ApplicationService(
     applicationRepository,
     jobRepository,
@@ -133,6 +134,9 @@ export function buildRoutes() {
     },
     "/applications/:applicationId/history": {
       GET: withErrorHandling(requireAuth(applicationController.getHistory)),
+    },
+    "/applications/:applicationId/candidate": {
+      GET: withErrorHandling(requireRole([Role.RECRUITER], candidateController.getForApplication)),
     },
     "/applications/:applicationId/stage": {
       PATCH: withErrorHandling(requireRole([Role.RECRUITER], applicationController.moveStage)),

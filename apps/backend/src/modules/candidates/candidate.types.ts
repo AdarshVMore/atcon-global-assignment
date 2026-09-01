@@ -1,3 +1,4 @@
+import type { Resume } from "@atcon/database";
 import type { CandidateWithUser } from "./candidate.repository.ts";
 
 export interface CandidateProfile {
@@ -10,6 +11,10 @@ export interface CandidateProfile {
     email: string;
     name: string;
   };
+}
+
+export interface CandidateProfileWithResumes extends CandidateProfile {
+  resumes: Resume[];
 }
 
 export function toCandidateProfile(candidate: CandidateWithUser): CandidateProfile {

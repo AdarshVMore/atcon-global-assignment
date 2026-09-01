@@ -1,3 +1,4 @@
+import type { BunRequest } from "bun";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.ts";
 import { parseJsonBody } from "../../shared/utils/parseJsonBody.ts";
 import type { CandidateService } from "./candidate.service.ts";
@@ -14,6 +15,13 @@ export class CandidateController {
   updateProfile = async (req: AuthenticatedRequest): Promise<Response> => {
     const body = await parseJsonBody<UpdateCandidateProfileRequestBody>(req);
     const candidate = await this.candidateService.updateProfile(req.user.id, body);
+    return Response.json(candidate);
+  };
+
+  getForApplication = async (
+    req: AuthenticatedRequest<BunRequest<"/applications/:applicationId/candidate">>,
+  ): Promise<Response> => {
+    const candidate = await this.candidateService.getProfileForRecruiter(req.user.id, req.params.applicationId);
     return Response.json(candidate);
   };
 }

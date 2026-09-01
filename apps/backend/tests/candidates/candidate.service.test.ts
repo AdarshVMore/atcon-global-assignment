@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Prisma, Role, type Candidate, type User } from "@atcon/database";
+import { Prisma, Role, type Candidate, type Resume, type User } from "@atcon/database";
 import { CandidateService } from "../../src/modules/candidates/candidate.service.ts";
 import type { CandidateRepository, CandidateWithUser } from "../../src/modules/candidates/candidate.repository.ts";
+import type { ApplicationRepository, ApplicationWithRelations } from "../../src/modules/applications/application.repository.ts";
+import type { ResumeRepository } from "../../src/modules/resumes/resume.repository.ts";
 
 function buildCandidate(overrides: Partial<Candidate> = {}): CandidateWithUser {
   const user: User = {
@@ -27,14 +29,47 @@ function buildCandidate(overrides: Partial<Candidate> = {}): CandidateWithUser {
 function fakeRepository(overrides: Partial<CandidateRepository> = {}): CandidateRepository {
   return {
     findByUserId: async () => buildCandidate(),
+    findByIdWithUser: async () => buildCandidate(),
     updatePhone: async (_id, phone) => buildCandidate({ phone }),
     ...overrides,
   } as CandidateRepository;
 }
 
+function fakeApplicationRepository(overrides: Partial<ApplicationRepository> = {}): ApplicationRepository {
+  return {
+    findById: async () =>
+      ({
+        id: "application-1",
+        candidateId: "candidate-1",
+        jobId: "job-1",
+        job: { id: "job-1", title: "Backend Engineer", recruiterId: "recruiter-1", status: "PUBLISHED" },
+      }) as ApplicationWithRelations,
+    ...overrides,
+  } as ApplicationRepository;
+}
+
+function fakeResumeRepository(overrides: Partial<ResumeRepository> = {}): ResumeRepository {
+  return {
+    findByCandidateId: async () => [] as Resume[],
+    ...overrides,
+  } as ResumeRepository;
+}
+
+function buildService(overrides: {
+  candidate?: Partial<CandidateRepository>;
+  application?: Partial<ApplicationRepository>;
+  resume?: Partial<ResumeRepository>;
+} = {}) {
+  return new CandidateService(
+    fakeRepository(overrides.candidate),
+    fakeApplicationRepository(overrides.application),
+    fakeResumeRepository(overrides.resume),
+  );
+}
+
 describe("CandidateService.getProfile", () => {
   test("throws when no candidate profile exists for the user", async () => {
-    const service = new CandidateService(fakeRepository({ findByUserId: async () => null }));
+    const service = buildService({ candidate: { findByUserId: async () => null } });
 
     await expect(service.getProfile("user-1")).rejects.toThrow("Candidate profile not found");
   });
@@ -42,13 +77,13 @@ describe("CandidateService.getProfile", () => {
 
 describe("CandidateService.updateProfile", () => {
   test("rejects an invalid phone number", async () => {
-    const service = new CandidateService(fakeRepository());
+    const service = buildService();
 
     await expect(service.updateProfile("user-1", { phone: "abc" })).rejects.toThrow("A valid phone number is required");
   });
 
   test("leaves the profile untouched when no phone is provided", async () => {
-    const service = new CandidateService(fakeRepository());
+    const service = buildService();
 
     const result = await service.updateProfile("user-1", {});
 
@@ -56,16 +91,17 @@ describe("CandidateService.updateProfile", () => {
   });
 
   test("maps a duplicate phone number to a conflict", async () => {
-    const repository = fakeRepository({
-      updatePhone: async () => {
-        throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-          code: "P2002",
-          clientVersion: "7.10.0",
-          meta: { driverAdapterError: { cause: { constraint: { index: "Candidate_phone_key" } } } },
-        });
+    const service = buildService({
+      candidate: {
+        updatePhone: async () => {
+          throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+            code: "P2002",
+            clientVersion: "7.10.0",
+            meta: { driverAdapterError: { cause: { constraint: { index: "Candidate_phone_key" } } } },
+          });
+        },
       },
     });
-    const service = new CandidateService(repository);
 
     await expect(service.updateProfile("user-1", { phone: "+1-555-0100" })).rejects.toThrow(
       "This phone number is already associated with another account",
@@ -73,10 +109,39 @@ describe("CandidateService.updateProfile", () => {
   });
 
   test("updates the phone number", async () => {
-    const service = new CandidateService(fakeRepository());
+    const service = buildService();
 
     const result = await service.updateProfile("user-1", { phone: "+1-555-0199" });
 
     expect(result.phone).toBe("+1-555-0199");
+  });
+});
+
+describe("CandidateService.getProfileForRecruiter", () => {
+  test("throws when the application does not exist", async () => {
+    const service = buildService({ application: { findById: async () => null } });
+
+    await expect(service.getProfileForRecruiter("recruiter-1", "application-1")).rejects.toThrow(
+      "Application not found",
+    );
+  });
+
+  test("throws when the requesting recruiter does not own the job", async () => {
+    const service = buildService();
+
+    await expect(service.getProfileForRecruiter("someone-else", "application-1")).rejects.toThrow(
+      "Application not found",
+    );
+  });
+
+  test("returns the candidate's profile and resumes for the owning recruiter", async () => {
+    const resumes = [{ id: "resume-1", candidateId: "candidate-1" } as Resume];
+    const service = buildService({ resume: { findByCandidateId: async () => resumes } });
+
+    const result = await service.getProfileForRecruiter("recruiter-1", "application-1");
+
+    expect(result.id).toBe("candidate-1");
+    expect(result.user.name).toBe("Chris Candidate");
+    expect(result.resumes).toEqual(resumes);
   });
 });

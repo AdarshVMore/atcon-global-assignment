@@ -7,6 +7,10 @@ export class CandidateRepository {
     return prisma.candidate.findUnique({ where: { id } });
   }
 
+  findByIdWithUser(id: string): Promise<CandidateWithUser | null> {
+    return prisma.candidate.findUnique({ where: { id }, include: { user: true } });
+  }
+
   findByUserId(userId: string): Promise<CandidateWithUser | null> {
     return prisma.candidate.findUnique({ where: { userId }, include: { user: true } });
   }
