@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { InterviewStatusBadge } from "@/components/interviews/interview-status-badge";
+import { InterviewDetailDialog } from "@/components/interviews/interview-detail-dialog";
 import { LoadingState } from "@/components/layout/loading-state";
+import type { Interview } from "@/types/interviews";
 import { useInterviewsForApplication } from "@/features/interviews/useInterviews";
 import {
   useCancelInterview,
@@ -32,6 +34,7 @@ export function ApplicationInterviewsPanel({ applicationId }: { applicationId: s
   const [scorecardOpenFor, setScorecardOpenFor] = useState<string | null>(null);
   const [rescheduleOpenFor, setRescheduleOpenFor] = useState<string | null>(null);
   const [rescheduleValue, setRescheduleValue] = useState("");
+  const [detailInterview, setDetailInterview] = useState<Interview | null>(null);
 
   function handleSchedule(event: React.FormEvent) {
     event.preventDefault();
@@ -53,10 +56,16 @@ export function ApplicationInterviewsPanel({ applicationId }: { applicationId: s
     <div className="flex flex-col gap-3">
       {(interviews ?? []).map((interview) => (
         <div key={interview.id} className="rounded-lg border p-2.5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm">{new Date(interview.scheduledAt).toLocaleString()}</p>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left hover:opacity-70"
+            onClick={() => setDetailInterview(interview)}
+          >
+            <p className="text-sm underline decoration-dotted underline-offset-2">
+              {new Date(interview.scheduledAt).toLocaleString()}
+            </p>
             <InterviewStatusBadge status={interview.status} />
-          </div>
+          </button>
           <p className="text-xs text-muted-foreground">{interview.durationMinutes} minutes</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {(interview.status === "SCHEDULED" || interview.status === "RESCHEDULED") && (
@@ -160,6 +169,12 @@ export function ApplicationInterviewsPanel({ applicationId }: { applicationId: s
           {scheduleInterview.isPending ? "Scheduling..." : "Schedule"}
         </Button>
       </form>
+
+      <InterviewDetailDialog
+        interview={detailInterview}
+        open={!!detailInterview}
+        onOpenChange={(open) => !open && setDetailInterview(null)}
+      />
     </div>
   );
 }

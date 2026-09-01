@@ -1,15 +1,17 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { LoadingState } from "@/components/layout/loading-state";
 import { ErrorState } from "@/components/layout/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InterviewStatusBadge } from "@/components/interviews/interview-status-badge";
+import { InterviewDetailDialog } from "@/components/interviews/interview-detail-dialog";
 import { useApplication } from "@/features/applications/useApplications";
 import { useInterviewsForApplication } from "@/features/interviews/useInterviews";
 import { ApiError } from "@/lib/api/error";
+import type { Interview } from "@/types/interviews";
 
 export default function CandidateApplicationDetailPage({
   params,
@@ -17,6 +19,7 @@ export default function CandidateApplicationDetailPage({
   const { applicationId } = use(params);
   const { data: application, isLoading, isError, error, refetch } = useApplication(applicationId);
   const { data: interviews } = useInterviewsForApplication(applicationId);
+  const [detailInterview, setDetailInterview] = useState<Interview | null>(null);
 
   if (isLoading) {
     return (
@@ -69,17 +72,29 @@ export default function CandidateApplicationDetailPage({
           )}
           <div className="flex flex-col gap-2">
             {(interviews ?? []).map((interview) => (
-              <div key={interview.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+              <button
+                key={interview.id}
+                className="flex items-center justify-between rounded-md border p-2 text-left text-sm hover:bg-muted/40"
+                onClick={() => setDetailInterview(interview)}
+              >
                 <div>
-                  <p>{new Date(interview.scheduledAt).toLocaleString()}</p>
+                  <p className="underline decoration-dotted underline-offset-2">
+                    {new Date(interview.scheduledAt).toLocaleString()}
+                  </p>
                   <p className="text-xs text-muted-foreground">{interview.durationMinutes} minutes</p>
                 </div>
                 <InterviewStatusBadge status={interview.status} />
-              </div>
+              </button>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      <InterviewDetailDialog
+        interview={detailInterview}
+        open={!!detailInterview}
+        onOpenChange={(open) => !open && setDetailInterview(null)}
+      />
     </PageContainer>
   );
 }
